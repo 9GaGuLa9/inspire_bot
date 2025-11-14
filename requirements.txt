@@ -1,0 +1,10 @@
+# Telegram Bot
+python-telegram-bot==20.7
+
+# HTTP requests
+requests
+
+# Web scraping
+selenium
+
+# Database - sqlite3 is built into Python

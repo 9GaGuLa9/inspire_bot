@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Tango tokens
+tango_token.json
+
+# Config files with sensitive data
+example.ini
+config.ini
+config.py
+
+# Logs
+*.log
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Search results
+search_results/
+
+# OS
+.DS_Store
+Thumbs.db
