@@ -29,6 +29,8 @@ class CallbackRouter:
             await self.bot.menu_handlers.show_streamers_menu(query)
         elif data == 'gifters_menu':
             await self.bot.menu_handlers.show_gifters_menu(query)
+        elif data == 'mentors_menu':
+            await self.bot.mentor_handlers.show_mentors_menu(query)
         elif data == 'help':
             await self.bot.menu_handlers.show_help(query)
             
@@ -137,6 +139,68 @@ class CallbackRouter:
         elif data.startswith('page_delete_'):
             page = int(data.replace('page_delete_', ''))
             await self.bot.streamer_handlers.show_delete_page(query, user_id, page)
+        
+        # Ментори
+        elif data == 'add_mentor':
+            await self.bot.mentor_handlers.start_add_mentor(query, user_id)
+        elif data == 'show_mentors':
+            await self.bot.mentor_handlers.show_all_mentors(query)
+        elif data == 'show_mentor_statistics':
+            await self.bot.mentor_handlers.show_mentor_statistics(query)
+        elif data == 'remove_mentor':
+            await self.bot.mentor_handlers.start_remove_mentor(query, user_id)
+        elif data == 'edit_mentor_select':
+            await self.bot.mentor_handlers.show_edit_mentor_list(query)
+        elif data == 'restore_mentor_select':
+            await self.bot.mentor_handlers.show_restore_mentor_list(query)
+        # ВАЖЛИВО: Специфічні callback'и ПЕРЕД загальним edit_mentor_
+        elif data.startswith('edit_mentor_name_'):
+            mentor_id = int(data.replace('edit_mentor_name_', ''))
+            await self.bot.mentor_handlers.start_edit_mentor_name(query, user_id, mentor_id)
+        elif data.startswith('edit_mentor_telegram_'):
+            mentor_id = int(data.replace('edit_mentor_telegram_', ''))
+            await self.bot.mentor_handlers.start_edit_mentor_telegram(query, user_id, mentor_id)
+        elif data.startswith('edit_mentor_instagram_'):
+            mentor_id = int(data.replace('edit_mentor_instagram_', ''))
+            await self.bot.mentor_handlers.start_edit_mentor_instagram(query, user_id, mentor_id)
+        elif data.startswith('remove_mentor_telegram_'):
+            mentor_id = int(data.replace('remove_mentor_telegram_', ''))
+            await self.bot.mentor_handlers.remove_mentor_field(query, user_id, mentor_id, 'telegram')
+        elif data.startswith('remove_mentor_instagram_'):
+            mentor_id = int(data.replace('remove_mentor_instagram_', ''))
+            await self.bot.mentor_handlers.remove_mentor_field(query, user_id, mentor_id, 'instagram')
+        elif data.startswith('send_activation_'):
+            mentor_id = int(data.replace('send_activation_', ''))
+            await self.bot.mentor_handlers.send_activation_link(query, mentor_id)
+        # Загальний edit_mentor_ в кінці
+        elif data.startswith('edit_mentor_'):
+            mentor_id = int(data.replace('edit_mentor_', ''))
+            await self.bot.mentor_handlers.show_edit_mentor_menu(query, user_id, mentor_id)
+        elif data.startswith('del_mentor_'):
+            mentor_id = data.replace('del_mentor_', '')
+            await self.bot.mentor_handlers.confirm_delete_mentor(query, mentor_id)
+        elif data.startswith('confirm_del_mentor_'):
+            mentor_id = data.replace('confirm_del_mentor_', '')
+            await self.bot.mentor_handlers.delete_mentor(query, mentor_id)
+        elif data.startswith('restore_mentor_'):
+            mentor_id = data.replace('restore_mentor_', '')
+            await self.bot.mentor_handlers.restore_mentor(query, mentor_id)
+        elif data == 'add_mentor_additional_data':
+            await self.bot.mentor_handlers.show_mentor_additional_data_menu(query, user_id)
+        elif data == 'finish_mentor_adding':
+            await self.bot.mentor_handlers.finish_mentor_adding(query, user_id)
+        elif data == 'add_mentor_telegram':
+            await self.bot.mentor_handlers.start_add_mentor_telegram(query, user_id)
+        elif data == 'add_mentor_instagram':
+            await self.bot.mentor_handlers.start_add_mentor_instagram(query, user_id)
+        elif data.startswith('assign_mentor_'):
+            streamer_id = data.replace('assign_mentor_', '')
+            await self.bot.streamer_handlers.show_mentor_selection(query, user_id, streamer_id)
+        elif data.startswith('select_mentor_'):
+            parts = data.replace('select_mentor_', '').split('_', 1)
+            if len(parts) == 2:
+                streamer_id, mentor_name = parts
+                await self.bot.streamer_handlers.assign_mentor_to_streamer(query, user_id, streamer_id, mentor_name)
             
         # Noop
         elif data == 'noop':

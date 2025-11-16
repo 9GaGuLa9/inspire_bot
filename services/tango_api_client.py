@@ -193,7 +193,13 @@ class TangoAPIClient:
             raise Exception(f"Не вдалося завантажити профіль {account_id}")
         
         # Витягуємо ім'я
-        user_name = profile.get('displayName') or profile.get('name') or 'Unknown'
+        user_name = (
+            profile.get("displayName")
+            or profile.get("name")
+            or profile.get("basicProfile", {}).get("firstName")
+            or (profile.get("basicProfile", {}).get("aliases", [{}])[0].get("alias"))
+            or "Unknown"
+        )
         
         return account_id, user_name
     

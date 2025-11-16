@@ -95,8 +95,11 @@ class StreamerHandlers:
                         existing_data += f"• **Платформа:** {existing_streamer.get('platform')}\n"
                     
                     keyboard = [
-                        [InlineKeyboardButton("➕ Додати інші дані", callback_data='add_more_data')],
-                        [InlineKeyboardButton("✅ Завершити", callback_data='finish_adding')]
+                        [InlineKeyboardButton("✏️ Змінити ім'я", callback_data=f'edit_name_{streamer_id}')],
+                        [InlineKeyboardButton("📱 Змінити Telegram", callback_data=f'edit_telegram_{streamer_id}')],
+                        [InlineKeyboardButton("📷 Змінити Instagram", callback_data=f'edit_instagram_{streamer_id}')],
+                        [InlineKeyboardButton("📲 Змінити платформу", callback_data=f'edit_platform_{streamer_id}')],
+                        [InlineKeyboardButton("🎓 Змінити ментора", callback_data=f'assign_mentor_{streamer_id}')]  # ДОДАТИ ЦЕ
                     ]
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
@@ -176,7 +179,7 @@ class StreamerHandlers:
         text += f"📊 Всього: {total} стрімерів\n\n"
         
         for i, streamer_data in enumerate(page_streamers, start_idx + 1):
-            name, user_id, profile_url, tg_name, tg_url, instagram_url, platform, created_at = streamer_data
+            name, user_id, profile_url, tg_name, tg_url, instagram_url, platform, mentor_name, created_at = streamer_data
             
             # Форматуємо дату
             try:
@@ -195,7 +198,9 @@ class StreamerHandlers:
                 text += f"   📷 [Instagram]({instagram_url})\n"
             if platform:
                 text += f"   📲 {platform}\n"
-            
+            if mentor_name:
+                text += f"   🎓 Ментор: {mentor_name}\n"
+
             text += "\n"
         
         # Кнопки редагування для кожного стрімера на сторінці
@@ -362,7 +367,9 @@ class StreamerHandlers:
                     text += f"   📷 [Instagram]({instagram_url})\n"
                 if platform:
                     text += f"   📲 {platform}\n"
-                
+                if mentor_name:
+                    text += f"   🎓 Ментор: {mentor_name}\n"
+
                 text += "\n"
             
             if len(streamers) > display_limit:
@@ -426,7 +433,9 @@ class StreamerHandlers:
                     text += f"   📷 [Instagram]({instagram_url})\n"
                 if platform:
                     text += f"   📲 {platform}\n"
-                
+                if mentor_name:
+                    text += f"   🎓 Ментор: {mentor_name}\n"
+
                 text += "\n"
             
             if len(streamers) > display_limit:
@@ -500,6 +509,7 @@ class StreamerHandlers:
             [InlineKeyboardButton("📱 Telegram", callback_data='add_telegram')],
             [InlineKeyboardButton("📷 Instagram", callback_data='add_instagram')],
             [InlineKeyboardButton("📲 iOS/Android", callback_data='add_platform')],
+            [InlineKeyboardButton("🎓 Призначити ментора", callback_data=f'assign_mentor_{streamer_data.get("id")}')],
             [InlineKeyboardButton("✅ Завершити", callback_data='finish_adding')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -680,11 +690,12 @@ class StreamerHandlers:
         if user_id not in self.bot.temp_data:
             await chat.send_message("❌ Помилка: дані стрімера не знайдені!")
             return
-        
+                
         keyboard = [
             [InlineKeyboardButton("📱 Telegram", callback_data='add_telegram')],
             [InlineKeyboardButton("📷 Instagram", callback_data='add_instagram')],
             [InlineKeyboardButton("📲 iOS/Android", callback_data='add_platform')],
+            [InlineKeyboardButton("🎓 Призначити ментора", callback_data=f'assign_mentor_{streamer_data.get("id")}')],
             [InlineKeyboardButton("✅ Завершити", callback_data='finish_adding')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -752,7 +763,8 @@ class StreamerHandlers:
             tg_name=streamer_data.get('tg_name'),
             tg_url=streamer_data.get('tg_url'),
             instagram_url=streamer_data.get('instagram_url'),
-            platform=streamer_data.get('platform')
+            platform=streamer_data.get('platform'),
+            mentor_name=streamer_data.get('mentor_name')
         )
         
         keyboard = [
@@ -972,13 +984,18 @@ class StreamerHandlers:
             text += f"📲 Платформа: {streamer['platform']}\n"
         else:
             text += f"📲 Платформа: _не вказано_\n"
-        
+
+        if streamer.get('mentor_name'):
+            text += f"🎓 Ментор: {streamer['mentor_name']}\n"
+        else:
+            text += f"🎓 Ментор: _не призначено_\n"
         # Кнопки редагування
         keyboard = [
             [InlineKeyboardButton("✏️ Змінити ім'я", callback_data=f'edit_name_{streamer_id}')],
             [InlineKeyboardButton("📱 Змінити Telegram", callback_data=f'edit_telegram_{streamer_id}')],
             [InlineKeyboardButton("📷 Змінити Instagram", callback_data=f'edit_instagram_{streamer_id}')],
-            [InlineKeyboardButton("📲 Змінити платформу", callback_data=f'edit_platform_{streamer_id}')]
+            [InlineKeyboardButton("📲 Змінити платформу", callback_data=f'edit_platform_{streamer_id}')],
+            [InlineKeyboardButton("🎓 Змінити ментора", callback_data=f'assign_mentor_{streamer_id}')]  # ДОДАТИ ЦЕ
         ]
         
         # Кнопки видалення полів
@@ -1382,7 +1399,9 @@ class StreamerHandlers:
                     text += f"   📷 [Instagram]({instagram_url})\n"
                 if platform:
                     text += f"   📲 {platform}\n"
-                
+                if mentor_name:
+                    text += f"   🎓 Ментор: {mentor_name}\n"
+
                 text += "\n"
             
             if len(found_streamers) > display_limit:
@@ -1417,3 +1436,205 @@ class StreamerHandlers:
         if user_id in self.bot.temp_data and 'search_instruction_message_id' in self.bot.temp_data[user_id]:
             del self.bot.temp_data[user_id]['search_instruction_message_id']
 
+    async def show_mentor_selection(self, query, user_id, streamer_id):
+        """Показати список менторів для призначення стрімеру"""
+        import logging
+        
+        # Логування для діагностики
+        logging.info(f"show_mentor_selection called with streamer_id: {streamer_id}, type: {type(streamer_id)}")
+        
+        # Очищуємо streamer_id від зайвих символів
+        streamer_id = str(streamer_id).strip()
+        logging.info(f"Cleaned streamer_id: {streamer_id}")
+        
+        streamer = self.bot.db.get_streamer_by_id(streamer_id)
+        
+        if not streamer:
+            logging.error(f"Streamer not found for id: {streamer_id}")
+            
+            # Спробуємо показати що є в базі для діагностики
+            all_streamers = self.bot.db.get_all_streamers()
+            logging.info(f"Total streamers in DB: {len(all_streamers)}")
+            if all_streamers:
+                logging.info(f"First streamer user_id: {all_streamers[0][1]}")
+            
+            keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='streamers_menu')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(
+                f"❌ Стрімера не знайдено!\n\n"
+                f"**Debug info:**\n"
+                f"Шуканий ID: `{streamer_id}`\n"
+                f"Стрімерів у БД: {len(all_streamers)}",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+            return
+        
+        logging.info(f"Streamer found: {streamer['name']}")
+        
+        # Отримуємо менторів, сортованих за датою останнього призначення
+        mentors = self.bot.db.get_all_mentors(sort_by_assignment=True)
+        stats = self.bot.db.get_mentor_statistics()
+        
+        if not mentors:
+            keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data=f'edit_streamer_{streamer_id}')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(
+                "❌ Спочатку додайте менторів через меню 'Ментори'",
+                reply_markup=reply_markup
+            )
+            return
+        
+        text = f"🎓 **Призначення ментора**\n\n"
+        text += f"**Стрімер:** {streamer['name']}\n"
+        
+        if streamer.get('mentor_name'):
+            text += f"**Поточний ментор:** {streamer['mentor_name']}\n"
+        else:
+            text += f"**Поточний ментор:** _не призначено_\n"
+        
+        text += f"\n📊 Оберіть ментора:\n"
+        text += f"_(відсортовано за датою останнього призначення)_\n"
+        
+        keyboard = []
+        
+        # Додаємо кнопку "Без ментора"
+        no_mentor_count = stats.get('Без ментора', {}).get('count', 0)
+        keyboard.append([InlineKeyboardButton(
+            f"⭕ Без ментора ({no_mentor_count} стрімерів)",
+            callback_data=f'select_mentor_{streamer_id}_none'
+        )])
+        
+        # Додаємо менторів
+        for mentor_data in mentors:
+            mentor_id, mentor_name = mentor_data[0], mentor_data[1]
+            mentor_stats = stats.get(mentor_name, {})
+            count = mentor_stats.get('count', 0)
+            is_activated = mentor_stats.get('is_activated', False)
+            
+            activation_mark = "✅" if is_activated else "⚠️"
+            
+            keyboard.append([InlineKeyboardButton(
+                f"{activation_mark} {mentor_name} ({count} стрімерів)",
+                callback_data=f'select_mentor_{streamer_id}_{mentor_name}'
+            )])
+        
+        keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data=f'edit_streamer_{streamer_id}')])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def assign_mentor_to_streamer(self, query, user_id, streamer_id, mentor_identifier):
+        """Призначення ментора стрімеру"""
+        streamer = self.bot.db.get_streamer_by_id(streamer_id)
+        
+        if not streamer:
+            await query.edit_message_text("❌ Стрімера не знайдено!")
+            return
+        
+        # Визначаємо ім'я ментора
+        if mentor_identifier == 'none':
+            mentor_name = None
+            mentor = None
+        else:
+            mentor_name = mentor_identifier
+            mentor = self.bot.db.get_mentor_by_user_id(mentor_identifier)
+            
+            # Якщо не знайшли за user_id, шукаємо за ім'ям
+            if not mentor:
+                mentors = self.bot.db.get_all_mentors()
+                for m in mentors:
+                    if m[1] == mentor_name:  # m[1] - це mentor_name
+                        mentor = self.bot.db.get_mentor_by_id(m[0])
+                        break
+        
+        # Оновлюємо стрімера
+        success = self.bot.db.add_streamer(
+            name=streamer['name'],
+            user_id=streamer_id,
+            profile_url=streamer['profile_url'],
+            tg_name=streamer.get('tg_name'),
+            tg_url=streamer.get('tg_url'),
+            instagram_url=streamer.get('instagram_url'),
+            platform=streamer.get('platform'),
+            mentor_name=mentor_name
+        )
+        
+        if success and mentor_name:
+            # Оновлюємо дату останнього призначення ментора
+            self.bot.db.update_mentor_last_assigned(mentor_name)
+            
+            # Відправляємо повідомлення ментору якщо він активований
+            if mentor and mentor.get('telegram_chat_id'):
+                await self.send_mentor_notification(
+                    mentor['telegram_chat_id'],
+                    mentor_name,
+                    streamer
+                )
+        
+        keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data=f'edit_streamer_{streamer_id}')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if success:
+            if mentor_name:
+                msg = f"✅ Ментора призначено!\n\n**Стрімер:** {streamer['name']}\n**Ментор:** {mentor_name}"
+                if mentor and not mentor.get('telegram_chat_id'):
+                    msg += "\n\n⚠️ Увага: Ментор не активований. Повідомлення не надіслано."
+            else:
+                msg = f"✅ Ментора прибрано!\n\n**Стрімер:** {streamer['name']}"
+            
+            await query.edit_message_text(
+                msg,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text(
+                "❌ Помилка призначення ментора!",
+                reply_markup=reply_markup
+            )
+
+    async def send_mentor_notification(self, chat_id, mentor_name, streamer):
+        """Відправка повідомлення ментору про призначення стрімера"""
+        from datetime import datetime
+        
+        try:
+            text = f"🎯 **Вам призначено нового стрімера!**\n\n"
+            text += f"👤 **Ім'я:** {streamer['name']}\n"
+            text += f"🆔 **ID:** `{streamer['user_id']}`\n"
+            text += f"🔗 **Профіль:** {streamer['profile_url']}\n"
+            
+            if streamer.get('tg_name'):
+                text += f"📱 **Telegram:** @{streamer['tg_name']}\n"
+            
+            if streamer.get('instagram_url'):
+                text += f"📷 **Instagram:** {streamer['instagram_url']}\n"
+            
+            if streamer.get('platform'):
+                text += f"📲 **Платформа:** {streamer['platform']}\n"
+            
+            current_date = datetime.now().strftime("%d.%m.%Y %H:%M")
+            text += f"📅 **Дата призначення:** {current_date}\n"
+            
+            # Отримуємо bot з context
+            from telegram import Bot
+            bot_token = self.bot.token
+            bot = Bot(token=bot_token)
+            
+            await bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode='Markdown',
+                disable_web_page_preview=True
+            )
+            
+            return True
+        except Exception as e:
+            import logging
+            logging.error(f"Помилка відправки повідомлення ментору {mentor_name}: {e}")
+            return False

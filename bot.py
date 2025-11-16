@@ -13,6 +13,7 @@ from handlers.menu_handlers import MenuHandlers
 from handlers.streamer_handlers import StreamerHandlers
 from handlers.gifter_handlers import GifterHandlers
 from handlers.search_handlers import SearchHandlers
+from handlers.mentor_handlers import MentorHandlers
 from handlers.callback_router import CallbackRouter
 
 
@@ -32,6 +33,7 @@ class TangoBot:
         self.streamer_handlers = StreamerHandlers(self)
         self.gifter_handlers = GifterHandlers(self)
         self.search_handlers = SearchHandlers(self)
+        self.mentor_handlers = MentorHandlers(self)
         self.callback_router = CallbackRouter(self)
         
         logging.info("TangoBot initialized successfully")
@@ -69,6 +71,19 @@ class TangoBot:
                 await self.streamer_handlers.process_edit_telegram(update, text, user_id)
             elif state == 'waiting_edit_instagram':
                 await self.streamer_handlers.process_edit_instagram(update, text, user_id)
+            # Ментори
+            elif state == 'waiting_mentor_url':
+                await self.mentor_handlers.process_mentor_url(update, text, user_id)
+            elif state == 'waiting_mentor_telegram':
+                await self.mentor_handlers.process_mentor_telegram(update, text, user_id)
+            elif state == 'waiting_mentor_instagram':
+                await self.mentor_handlers.process_mentor_instagram(update, text, user_id)
+            elif state == 'waiting_edit_mentor_url':
+                await self.mentor_handlers.process_edit_mentor_url(update, text, user_id)
+            elif state == 'waiting_edit_mentor_telegram':
+                await self.mentor_handlers.process_edit_mentor_telegram(update, text, user_id)
+            elif state == 'waiting_edit_mentor_instagram':
+                await self.mentor_handlers.process_edit_mentor_instagram(update, text, user_id)
         else:
             # Видаляємо невідомі повідомлення
             try:
