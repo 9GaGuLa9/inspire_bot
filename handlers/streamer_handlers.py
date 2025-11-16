@@ -95,11 +95,12 @@ class StreamerHandlers:
                         existing_data += f"• **Платформа:** {existing_streamer.get('platform')}\n"
                     
                     keyboard = [
-                        [InlineKeyboardButton("✏️ Змінити ім'я", callback_data=f'edit_name_{streamer_id}')],
-                        [InlineKeyboardButton("📱 Змінити Telegram", callback_data=f'edit_telegram_{streamer_id}')],
-                        [InlineKeyboardButton("📷 Змінити Instagram", callback_data=f'edit_instagram_{streamer_id}')],
-                        [InlineKeyboardButton("📲 Змінити платформу", callback_data=f'edit_platform_{streamer_id}')],
-                        [InlineKeyboardButton("🎓 Змінити ментора", callback_data=f'assign_mentor_{streamer_id}')]  # ДОДАТИ ЦЕ
+                        [InlineKeyboardButton("✏️ Змінити ім'я", callback_data=f'edit_name_{user_id_scraped}')],
+                        [InlineKeyboardButton("📱 Змінити Telegram", callback_data=f'edit_telegram_{user_id_scraped}')],
+                        [InlineKeyboardButton("📷 Змінити Instagram", callback_data=f'edit_instagram_{user_id_scraped}')],
+                        [InlineKeyboardButton("📲 Змінити платформу", callback_data=f'edit_platform_{user_id_scraped}')],
+                        [InlineKeyboardButton("🎓 Змінити ментора", callback_data=f'assign_mentor_{user_id_scraped}')],
+                        [InlineKeyboardButton("◀️ Назад", callback_data='streamers_menu')]
                     ]
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
@@ -687,20 +688,23 @@ class StreamerHandlers:
 
     async def send_additional_data_menu(self, chat, user_id):
         """Надсилає меню додаткових даних як нове повідомлення"""
+        # ВИПРАВЛЕННЯ 2: Отримуємо streamer_data ОДРАЗУ
+        streamer_data = self.bot.temp_data[user_id]
         if user_id not in self.bot.temp_data:
             await chat.send_message("❌ Помилка: дані стрімера не знайдені!")
-            return
-                
+            return  # ВИПРАВЛЕННЯ 1: Додано return!
+        
+        
         keyboard = [
             [InlineKeyboardButton("📱 Telegram", callback_data='add_telegram')],
             [InlineKeyboardButton("📷 Instagram", callback_data='add_instagram')],
             [InlineKeyboardButton("📲 iOS/Android", callback_data='add_platform')],
-            [InlineKeyboardButton("🎓 Призначити ментора", callback_data=f'assign_mentor_{streamer_data.get("id")}')],
+            [InlineKeyboardButton("🎓 Призначити ментора", 
+            callback_data=f'assign_mentor_{streamer_data.get("id")}')],
             [InlineKeyboardButton("✅ Завершити", callback_data='finish_adding')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        streamer_data = self.bot.temp_data[user_id]
         current_data = f"**Поточні дані стрімера:**\n"
         current_data += f"• **Ім'я:** {streamer_data.get('name')}\n"
         current_data += f"• **ID:** `{streamer_data.get('id')}`\n"
@@ -964,7 +968,7 @@ class StreamerHandlers:
         self.bot.temp_data[user_id]['editing_streamer_id'] = streamer_id
         
         # Формуємо текст з поточними даними
-        text = f"✏️ **Редагування стрімера**\n\n"
+        text = f"✏️ Редагування стрімера\n\n"
         text += f"**Ім'я:** {streamer['name']}\n"
         text += f"**ID:** `{streamer['user_id']}`\n"
         text += f"**Профіль:** [Переглянути]({streamer['profile_url']})\n\n"
@@ -1017,7 +1021,6 @@ class StreamerHandlers:
         await query.edit_message_text(
             text,
             reply_markup=reply_markup,
-            parse_mode='Markdown',
             disable_web_page_preview=True
         )
 

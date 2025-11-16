@@ -266,12 +266,12 @@ class MentorHandlers:
             del self.bot.user_states[user_id]
     
     async def send_mentor_additional_data_menu(self, chat, user_id):
-        """Надсилає меню додаткових даних ментора"""
+        # ВИПРАВЛЕННЯ: Отримуємо mentor_data ОДРАЗУ
+        mentor_data = self.bot.temp_data[user_id]
         if user_id not in self.bot.temp_data:
             await chat.send_message("❌ Помилка: дані ментора не знайдені!")
-            return
-        
-        mentor_data = self.bot.temp_data[user_id]
+            return  # ← ДОДАЙТЕ ЦЕЙ РЯДОК
+            
         
         keyboard = [
             [InlineKeyboardButton("📱 Telegram", callback_data='add_mentor_telegram')],
@@ -295,7 +295,7 @@ class MentorHandlers:
             parse_mode='Markdown',
             disable_web_page_preview=True
         )
-    
+
     async def finish_mentor_adding(self, query, user_id):
         """Завершення додавання ментора"""
         if user_id not in self.bot.temp_data:

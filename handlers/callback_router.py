@@ -193,14 +193,23 @@ class CallbackRouter:
             await self.bot.mentor_handlers.start_add_mentor_telegram(query, user_id)
         elif data == 'add_mentor_instagram':
             await self.bot.mentor_handlers.start_add_mentor_instagram(query, user_id)
+        
+        # Призначення ментора
         elif data.startswith('assign_mentor_'):
             streamer_id = data.replace('assign_mentor_', '')
             await self.bot.streamer_handlers.show_mentor_selection(query, user_id, streamer_id)
         elif data.startswith('select_mentor_'):
-            parts = data.replace('select_mentor_', '').split('_', 1)
+            # Формат: select_mentor_{streamer_id}_{mentor_name}
+            remaining = data.replace('select_mentor_', '')
+            parts = remaining.split('_', 1)
             if len(parts) == 2:
-                streamer_id, mentor_name = parts
+                streamer_id = parts[0]
+                mentor_name = parts[1]
+                logging.info(f"Assigning mentor - streamer_id: {streamer_id}, mentor_name: {mentor_name}")
                 await self.bot.streamer_handlers.assign_mentor_to_streamer(query, user_id, streamer_id, mentor_name)
+            else:
+                logging.error(f"Invalid select_mentor_ format: {data}")
+                await query.answer("❌ Помилка формату даних!", show_alert=True)
             
         # Noop
         elif data == 'noop':
