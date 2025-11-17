@@ -184,14 +184,15 @@ class DatabaseManager:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
+                # Виправлено: використовуємо числовий формат для правильного порівняння
                 cursor.execute('''
                     SELECT name, user_id, profile_url, tg_name, tg_url, 
                             instagram_url, platform, mentor_name, created_at
                     FROM streamers
-                    WHERE strftime('%Y', created_at) = ? 
-                        AND strftime('%m', created_at) = ?
+                    WHERE CAST(strftime('%Y', created_at) AS INTEGER) = ? 
+                        AND CAST(strftime('%m', created_at) AS INTEGER) = ?
                     ORDER BY created_at DESC
-                ''', (str(year), f'{month:02d}'))
+                ''', (year, month))
                 return cursor.fetchall()
         except Exception as e:
             logging.error(f"Error getting streamers by month: {e}")
@@ -390,8 +391,8 @@ class DatabaseManager:
     # ==================== МЕТОДИ ДЛЯ МЕНТОРІВ ====================
     
     def add_mentor(self, mentor_name: str, user_id: str, profile_url: str,
-                   telegram_username: Optional[str] = None, 
-                   instagram_url: Optional[str] = None) -> bool:
+                    telegram_username: Optional[str] = None, 
+                    instagram_url: Optional[str] = None) -> bool:
         """Додавання або оновлення ментора"""
         try:
             with self.get_connection() as conn:
@@ -431,8 +432,8 @@ class DatabaseManager:
                     # Сортування за датою останнього призначення (давніші першими)
                     cursor.execute('''
                         SELECT id, mentor_name, user_id, profile_url, telegram_username, 
-                               telegram_chat_id, instagram_url, activation_code,
-                               last_assigned_at, created_at
+                                telegram_chat_id, instagram_url, activation_code,
+                                last_assigned_at, created_at
                         FROM mentors
                         ORDER BY 
                             CASE WHEN last_assigned_at IS NULL THEN 0 ELSE 1 END,
@@ -442,8 +443,8 @@ class DatabaseManager:
                 else:
                     cursor.execute('''
                         SELECT id, mentor_name, user_id, profile_url, telegram_username, 
-                               telegram_chat_id, instagram_url, activation_code,
-                               last_assigned_at, created_at
+                                telegram_chat_id, instagram_url, activation_code,
+                                last_assigned_at, created_at
                         FROM mentors
                         ORDER BY created_at DESC
                     ''')
@@ -459,8 +460,8 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT id, mentor_name, user_id, profile_url, telegram_username, 
-                           telegram_chat_id, instagram_url, activation_code,
-                           last_assigned_at, created_at
+                            telegram_chat_id, instagram_url, activation_code,
+                            last_assigned_at, created_at
                     FROM mentors
                     WHERE id = ?
                 ''', (mentor_id,))
@@ -491,8 +492,8 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT id, mentor_name, user_id, profile_url, telegram_username, 
-                           telegram_chat_id, instagram_url, activation_code,
-                           last_assigned_at, created_at
+                            telegram_chat_id, instagram_url, activation_code,
+                            last_assigned_at, created_at
                     FROM mentors
                     WHERE user_id = ?
                 ''', (user_id,))
@@ -523,8 +524,8 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT id, mentor_name, user_id, profile_url, telegram_username, 
-                           telegram_chat_id, instagram_url, activation_code,
-                           last_assigned_at, created_at
+                            telegram_chat_id, instagram_url, activation_code,
+                            last_assigned_at, created_at
                     FROM mentors
                     WHERE activation_code = ?
                 ''', (activation_code,))
@@ -611,7 +612,7 @@ class DatabaseManager:
                 # Отримуємо дані ментора
                 cursor.execute('''
                     SELECT id, mentor_name, user_id, profile_url, telegram_username, 
-                           telegram_chat_id, instagram_url, last_assigned_at, created_at
+                            telegram_chat_id, instagram_url, last_assigned_at, created_at
                     FROM mentors
                     WHERE id = ?
                 ''', (mentor_id,))
@@ -624,7 +625,7 @@ class DatabaseManager:
                 cursor.execute('''
                     INSERT INTO deleted_mentors 
                     (id, mentor_name, user_id, profile_url, telegram_username, 
-                     telegram_chat_id, instagram_url, last_assigned_at, created_at)
+                        telegram_chat_id, instagram_url, last_assigned_at, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', mentor)
                 
@@ -643,7 +644,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT id, mentor_name, user_id, profile_url, telegram_username, 
-                           instagram_url, deleted_at
+                            instagram_url, deleted_at
                     FROM deleted_mentors
                     ORDER BY deleted_at DESC
                 ''')
@@ -661,7 +662,7 @@ class DatabaseManager:
                 # Отримуємо дані видаленого ментора
                 cursor.execute('''
                     SELECT id, mentor_name, user_id, profile_url, telegram_username, 
-                           telegram_chat_id, instagram_url, last_assigned_at, created_at
+                            telegram_chat_id, instagram_url, last_assigned_at, created_at
                     FROM deleted_mentors
                     WHERE id = ?
                 ''', (mentor_id,))
@@ -674,7 +675,7 @@ class DatabaseManager:
                 cursor.execute('''
                     INSERT INTO mentors 
                     (id, mentor_name, user_id, profile_url, telegram_username, 
-                     telegram_chat_id, instagram_url, last_assigned_at, created_at)
+                        telegram_chat_id, instagram_url, last_assigned_at, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', mentor)
                 
@@ -712,7 +713,7 @@ class DatabaseManager:
                 # Кількість стрімерів у кожного ментора
                 cursor.execute('''
                     SELECT m.id, m.mentor_name, COUNT(s.id) as streamer_count,
-                           m.last_assigned_at, m.telegram_chat_id
+                            m.last_assigned_at, m.telegram_chat_id
                     FROM mentors m
                     LEFT JOIN streamers s ON s.mentor_name = m.mentor_name
                     GROUP BY m.id
@@ -744,3 +745,72 @@ class DatabaseManager:
         except Exception as e:
             logging.error(f"Error getting mentor statistics: {e}")
             return {}
+    # def get_streamers_by_mentor(self, mentor_name: str) -> List[Tuple]:
+    #     """Отримання стрімерів за ментором"""
+    #     try:
+    #         with self.get_connection() as conn:
+    #             cursor = conn.cursor()
+    #             cursor.execute('''
+    #                 SELECT name, user_id, profile_url, tg_name, tg_url, 
+    #                         instagram_url, platform, mentor_name, created_at
+    #                 FROM streamers
+    #                 WHERE mentor_name = ?
+    #                 ORDER BY created_at DESC
+    #             ''', (mentor_name,))
+    #             return cursor.fetchall()
+    #     except Exception as e:
+    #         logging.error(f"Error getting streamers by mentor: {e}")
+    #         return []
+
+    def get_streamers_by_mentor_and_year(self, mentor_name: str, year: int) -> List[Tuple]:
+        """Отримання стрімерів за ментором та роком"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT name, user_id, profile_url, tg_name, tg_url, 
+                            instagram_url, platform, mentor_name, created_at
+                    FROM streamers
+                    WHERE mentor_name = ? AND CAST(strftime('%Y', created_at) AS INTEGER) = ?
+                    ORDER BY created_at DESC
+                ''', (mentor_name, year))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Error getting streamers by mentor and year: {e}")
+            return []
+
+    def get_streamers_by_mentor_and_month(self, mentor_name: str, year: int, month: int) -> List[Tuple]:
+        """Отримання стрімерів за ментором та місяцем"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT name, user_id, profile_url, tg_name, tg_url, 
+                            instagram_url, platform, mentor_name, created_at
+                    FROM streamers
+                    WHERE mentor_name = ? 
+                        AND CAST(strftime('%Y', created_at) AS INTEGER) = ?
+                        AND CAST(strftime('%m', created_at) AS INTEGER) = ?
+                    ORDER BY created_at DESC
+                ''', (mentor_name, year, month))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Error getting streamers by mentor and month: {e}")
+            return []
+
+    def get_mentors_with_streamers(self) -> List[Tuple]:
+        """Отримання менторів які мають стрімерів з кількістю"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT mentor_name, COUNT(*) as count
+                    FROM streamers
+                    WHERE mentor_name IS NOT NULL AND mentor_name != ''
+                    GROUP BY mentor_name
+                    ORDER BY count DESC
+                ''')
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Error getting mentors with streamers: {e}")
+            return []

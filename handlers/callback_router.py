@@ -15,7 +15,19 @@ class CallbackRouter:
     async def route_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Головний роутер callback'ів"""
         query = update.callback_query
-        await query.answer()
+        
+        # Обробка застарілих callback'ів
+        try:
+            await query.answer()
+        except Exception as e:
+            # Якщо callback застарів, просто ігноруємо
+            if "Query is too old" in str(e) or "query id is invalid" in str(e):
+                logging.warning(f"Ignored old callback query: {e}")
+                return
+            else:
+                # Інші помилки логуємо
+                logging.error(f"Error answering callback: {e}")
+                return
         
         user_id = query.from_user.id
         data = query.data
@@ -33,7 +45,9 @@ class CallbackRouter:
             await self.bot.mentor_handlers.show_mentors_menu(query)
         elif data == 'help':
             await self.bot.menu_handlers.show_help(query)
-            
+        elif data == 'get_streamer_id':
+            await self.bot.streamer_handlers.start_get_id(query, user_id)
+                    
         # Стрімери
         elif data == 'add_streamer':
             await self.bot.streamer_handlers.start_add_streamer(query, user_id)
@@ -51,8 +65,84 @@ class CallbackRouter:
             await self.bot.streamer_handlers.show_year_selection(query, user_id)
         elif data == 'filter_by_month':
             await self.bot.streamer_handlers.show_year_selection_for_month(query, user_id)
+        elif data == 'filter_by_mentor':
+            await self.bot.streamer_handlers.show_mentor_filter_selection(query, user_id)
         elif data == 'show_statistics':
             await self.bot.streamer_handlers.show_statistics(query)
+
+        # Додаткові фільтри
+        elif data == 'add_mentor_filter':
+            await self.bot.streamer_handlers.show_mentor_selection_for_date_filter(query, user_id)
+        elif data == 'add_year_filter':
+            await self.bot.streamer_handlers.show_year_selection_for_mentor_filter(query, user_id)
+        elif data == 'add_month_filter':
+            await self.bot.streamer_handlers.show_month_selection_for_mentor_filter(query, user_id)
+
+        # Скидання фільтрів
+        elif data == 'reset_filters':
+            if user_id in self.bot.temp_data:
+                self.bot.temp_data[user_id].pop('filter_year', None)
+                self.bot.temp_data[user_id].pop('filter_month', None)
+                self.bot.temp_data[user_id].pop('filter_mentor', None)
+            await self.bot.streamer_handlers.show_filter_menu(query, user_id)
+
+        # Вибір ментора для фільтру
+        elif data.startswith('filter_mentor_'):
+            mentor_name = data.replace('filter_mentor_', '')
+            if user_id not in self.bot.temp_data:
+                self.bot.temp_data[user_id] = {}
+            self.bot.temp_data[user_id]['filter_mentor'] = mentor_name
+            await self.bot.streamer_handlers.show_streamers_by_mentor(query, user_id, mentor_name)
+
+        # Додавання ментора до існуючого фільтру
+        elif data.startswith('add_mentor_'):
+            mentor_name = data.replace('add_mentor_', '')
+            if user_id not in self.bot.temp_data:
+                self.bot.temp_data[user_id] = {}
+            self.bot.temp_data[user_id]['filter_mentor'] = mentor_name
+            
+            # Повертаємось до відображення з оновленим фільтром
+            filters = self.bot.temp_data[user_id]
+            year = filters.get('filter_year')
+            month = filters.get('filter_month')
+            
+            if year and month:
+                await self.bot.streamer_handlers.show_streamers_by_month(query, year, month)
+            elif year:
+                await self.bot.streamer_handlers.show_streamers_by_year(query, year)
+            else:
+                await self.bot.streamer_handlers.show_streamers_by_mentor(query, user_id, mentor_name)
+
+        # Додавання року до існуючого фільтру
+        elif data.startswith('add_year_'):
+            year = int(data.replace('add_year_', ''))
+            if user_id not in self.bot.temp_data:
+                self.bot.temp_data[user_id] = {}
+            self.bot.temp_data[user_id]['filter_year'] = year
+            self.bot.temp_data[user_id]['filter_month'] = None
+            
+            mentor_filter = self.bot.temp_data[user_id].get('filter_mentor')
+            if mentor_filter:
+                await self.bot.streamer_handlers.show_streamers_by_mentor(query, user_id, mentor_filter)
+            else:
+                await self.bot.streamer_handlers.show_streamers_by_year(query, year)
+
+        # Додавання місяця до існуючого фільтру
+        elif data.startswith('add_month_'):
+            month = int(data.replace('add_month_', ''))
+            filters = self.bot.temp_data.get(user_id, {})
+            year = filters.get('filter_year')
+            
+            if year:
+                if user_id not in self.bot.temp_data:
+                    self.bot.temp_data[user_id] = {}
+                self.bot.temp_data[user_id]['filter_month'] = month
+                
+                mentor_filter = self.bot.temp_data[user_id].get('filter_mentor')
+                if mentor_filter:
+                    await self.bot.streamer_handlers.show_streamers_by_mentor(query, user_id, mentor_filter)
+                else:
+                    await self.bot.streamer_handlers.show_streamers_by_month(query, year, month)
             
         # Роки та місяці
         elif data.startswith('year_for_month_'):
@@ -61,17 +151,27 @@ class CallbackRouter:
                 self.bot.temp_data[user_id] = {}
             self.bot.temp_data[user_id]['selected_year'] = year
             await self.bot.streamer_handlers.show_month_selection(query, user_id, year)
-        elif data.startswith('year_'):
-            year = int(data.replace('year_', ''))
-            await self.bot.streamer_handlers.show_streamers_by_year(query, year)
-        elif data.startswith('month_'):
-            await self._handle_month_selection(query, user_id, data)
+
         elif data.startswith('back_to_months_'):
             year = int(data.replace('back_to_months_', ''))
             if user_id not in self.bot.temp_data:
                 self.bot.temp_data[user_id] = {}
             self.bot.temp_data[user_id]['selected_year'] = year
+            # Очищаємо фільтр місяця при поверненні
+            self.bot.temp_data[user_id].pop('filter_month', None)
             await self.bot.streamer_handlers.show_month_selection(query, user_id, year)
+
+        elif data.startswith('year_'):
+            year = int(data.replace('year_', ''))
+            # Встановлюємо фільтр року
+            if user_id not in self.bot.temp_data:
+                self.bot.temp_data[user_id] = {}
+            self.bot.temp_data[user_id]['filter_year'] = year
+            self.bot.temp_data[user_id]['filter_month'] = None
+            await self.bot.streamer_handlers.show_streamers_by_year(query, year)
+
+        elif data.startswith('month_'):
+            await self._handle_month_selection(query, user_id, data)
             
         # Видалення та підтвердження
         elif data.startswith('del_streamer_'):
@@ -112,14 +212,38 @@ class CallbackRouter:
         # Редагування стрімера
         elif data.startswith('edit_streamer_'):
             await self.bot.streamer_handlers.show_edit_streamer_menu(query, user_id, data.replace('edit_streamer_', ''))
-        elif data.startswith('edit_name_'):
-            await self.bot.streamer_handlers.start_edit_name(query, user_id, data.replace('edit_name_', ''))
-        elif data.startswith('edit_telegram_'):
-            await self.bot.streamer_handlers.start_edit_telegram(query, user_id, data.replace('edit_telegram_', ''))
-        elif data.startswith('edit_instagram_'):
-            await self.bot.streamer_handlers.start_edit_instagram(query, user_id, data.replace('edit_instagram_', ''))
-        elif data.startswith('edit_platform_'):
-            await self.bot.streamer_handlers.show_edit_platform_menu(query, user_id, data.replace('edit_platform_', ''))
+        # Редагування стрімера - проміжні екрани
+        elif data.startswith('prompt_edit_name_'):
+            streamer_id = data.replace('prompt_edit_name_', '')
+            await self.bot.streamer_handlers.show_edit_name_prompt(query, user_id, streamer_id)
+        elif data.startswith('prompt_edit_telegram_'):
+            streamer_id = data.replace('prompt_edit_telegram_', '')
+            await self.bot.streamer_handlers.show_edit_telegram_prompt(query, user_id, streamer_id)
+        elif data.startswith('prompt_edit_instagram_'):
+            streamer_id = data.replace('prompt_edit_instagram_', '')
+            await self.bot.streamer_handlers.show_edit_instagram_prompt(query, user_id, streamer_id)
+        elif data.startswith('prompt_edit_platform_'):
+            streamer_id = data.replace('prompt_edit_platform_', '')
+            await self.bot.streamer_handlers.show_edit_platform_prompt(query, user_id, streamer_id)
+
+        # Видалення полів
+        elif data.startswith('delete_telegram_'):
+            streamer_id = data.replace('delete_telegram_', '')
+            await self.bot.streamer_handlers.delete_telegram(query, streamer_id)
+        elif data.startswith('delete_instagram_'):
+            streamer_id = data.replace('delete_instagram_', '')
+            await self.bot.streamer_handlers.delete_instagram(query, streamer_id)
+        elif data.startswith('delete_platform_'):
+            streamer_id = data.replace('delete_platform_', '')
+            await self.bot.streamer_handlers.delete_platform(query, streamer_id)
+
+        # Встановлення платформи
+        elif data.startswith('set_platform_'):
+            parts = data.replace('set_platform_', '').rsplit('_', 1)
+            streamer_id = parts[0]
+            platform = parts[1]
+            await self.bot.streamer_handlers.set_platform(query, streamer_id, platform)
+
         elif data.startswith('set_platform_'):
             parts = data.replace('set_platform_', '').rsplit('_', 1)
             if len(parts) == 2:
@@ -131,7 +255,14 @@ class CallbackRouter:
             await self.bot.streamer_handlers.remove_field(query, user_id, data.replace('remove_instagram_', ''), 'instagram')
         elif data.startswith('remove_platform_'):
             await self.bot.streamer_handlers.remove_field(query, user_id, data.replace('remove_platform_', ''), 'platform')
-            
+        elif data.startswith('confirm_rewrite_'):
+            # Формат: confirm_rewrite_{old_id}_{new_id}
+            parts = data.replace('confirm_rewrite_', '').split('_', 1)
+            if len(parts) == 2:
+                old_streamer_id = parts[0]
+                new_streamer_id = parts[1]
+                await self.bot.streamer_handlers.confirm_profile_rewrite(query, user_id, old_streamer_id, new_streamer_id)
+                
         # Пагінація
         elif data.startswith('page_streamers_'):
             page = int(data.replace('page_streamers_', ''))
@@ -199,14 +330,15 @@ class CallbackRouter:
             streamer_id = data.replace('assign_mentor_', '')
             await self.bot.streamer_handlers.show_mentor_selection(query, user_id, streamer_id)
         elif data.startswith('select_mentor_'):
-            # Формат: select_mentor_{streamer_id}_{mentor_name}
+            # Формат: select_mentor_{streamer_id}_{mentor_id}
+            # ВАЖЛИВО: streamer_id може містити символ "_"!
             remaining = data.replace('select_mentor_', '')
-            parts = remaining.split('_', 1)
+            parts = remaining.rsplit('_', 1)  # ← rsplit розділяє з КІНЦЯ!
             if len(parts) == 2:
-                streamer_id = parts[0]
-                mentor_name = parts[1]
-                logging.info(f"Assigning mentor - streamer_id: {streamer_id}, mentor_name: {mentor_name}")
-                await self.bot.streamer_handlers.assign_mentor_to_streamer(query, user_id, streamer_id, mentor_name)
+                streamer_id = parts[0]  # Може містити "_"
+                mentor_id = parts[1]    # Завжди число
+                logging.info(f"Assigning mentor - streamer_id: {streamer_id}, mentor_id: {mentor_id}")
+                await self.bot.streamer_handlers.assign_mentor_to_streamer(query, user_id, streamer_id, mentor_id)
             else:
                 logging.error(f"Invalid select_mentor_ format: {data}")
                 await query.answer("❌ Помилка формату даних!", show_alert=True)
@@ -236,6 +368,12 @@ class CallbackRouter:
             year = self.bot.temp_data.get(user_id, {}).get('selected_year')
         
         if year:
+            # Встановлюємо фільтри
+            if user_id not in self.bot.temp_data:
+                self.bot.temp_data[user_id] = {}
+            self.bot.temp_data[user_id]['filter_year'] = year
+            self.bot.temp_data[user_id]['filter_month'] = month
+            
             await self.bot.streamer_handlers.show_streamers_by_month(query, year, month)
         else:
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup

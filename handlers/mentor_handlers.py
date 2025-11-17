@@ -271,7 +271,6 @@ class MentorHandlers:
         if user_id not in self.bot.temp_data:
             await chat.send_message("❌ Помилка: дані ментора не знайдені!")
             return  # ← ДОДАЙТЕ ЦЕЙ РЯДОК
-            
         
         keyboard = [
             [InlineKeyboardButton("📱 Telegram", callback_data='add_mentor_telegram')],

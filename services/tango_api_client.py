@@ -150,9 +150,7 @@ class TangoAPIClient:
             # https://tango.me/profile/123456789
             (r'tango\.me/profile/([a-zA-Z0-9_-]+)', 'id'),
             # https://tango.me/stream/123456789
-            (r'tango\.me/stream/([a-zA-Z0-9_-]+)', 'id'),
-            # https://tango.me/@username
-            (r'tango\.me/@([a-zA-Z0-9_-]+)', 'alias'),
+            (r'tango\.me/stream/([a-zA-Z0-9_-]+)', 'stream'),
             # https://tango.me/username
             (r'tango\.me/([a-zA-Z0-9_-]+)$', 'alias'),
         ]
@@ -216,20 +214,20 @@ class TangoAPIClient:
 if __name__ == "__main__":
     client = TangoAPIClient()
     
-    # Тестові URL
-    test_urls = [
-        "https://tango.me/profile/zorich7",
-        "https://tango.me/@zorich7",
-        "https://tango.me/stream/123456789"
-    ]
+    # # Тестові URL
+    # test_urls = [
+    #     "https://tango.me/profile/zorich7",
+    #     "https://tango.me/@zorich7",
+    #     "https://tango.me/stream/123456789"
+    # ]
     
-    for url in test_urls:
-        print(f"\n{'='*60}")
-        print(f"Тестування: {url}")
-        print('='*60)
-        try:
-            user_id, user_name = client.get_user_id_from_url(url)
-            print(f"✅ User ID: {user_id}")
-            print(f"✅ User Name: {user_name}")
-        except Exception as e:
-            print(f"❌ Помилка: {e}")
+    # for url in test_urls:
+    #     print(f"\n{'='*60}")
+    #     print(f"Тестування: {url}")
+    #     print('='*60)
+    #     try:
+    #         user_id, user_name = client.get_user_id_from_url(url)
+    #         print(f"✅ User ID: {user_id}")
+    #         print(f"✅ User Name: {user_name}")
+    #     except Exception as e:
+    #         print(f"❌ Помилка: {e}")

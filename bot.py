@@ -65,28 +65,25 @@ class TangoBot:
                 await self.streamer_handlers.process_instagram_url(update, text, user_id)
             elif state == 'waiting_search_query':
                 await self.streamer_handlers.process_search_query(update, text, user_id)
+            elif state == 'waiting_get_id_url':
+                await self.streamer_handlers.process_get_id_url(update, text, user_id)
             elif state == 'waiting_edit_name':
                 await self.streamer_handlers.process_edit_name(update, text, user_id)
             elif state == 'waiting_edit_telegram':
                 await self.streamer_handlers.process_edit_telegram(update, text, user_id)
             elif state == 'waiting_edit_instagram':
                 await self.streamer_handlers.process_edit_instagram(update, text, user_id)
-            # Ментори
+            elif state == 'waiting_mentor_name':
+                await self.mentor_handlers.process_mentor_name(update, text, user_id)
             elif state == 'waiting_mentor_url':
                 await self.mentor_handlers.process_mentor_url(update, text, user_id)
             elif state == 'waiting_mentor_telegram':
                 await self.mentor_handlers.process_mentor_telegram(update, text, user_id)
             elif state == 'waiting_mentor_instagram':
                 await self.mentor_handlers.process_mentor_instagram(update, text, user_id)
-            elif state == 'waiting_edit_mentor_url':
-                await self.mentor_handlers.process_edit_mentor_url(update, text, user_id)
-            elif state == 'waiting_edit_mentor_telegram':
-                await self.mentor_handlers.process_edit_mentor_telegram(update, text, user_id)
-            elif state == 'waiting_edit_mentor_instagram':
-                await self.mentor_handlers.process_edit_mentor_instagram(update, text, user_id)
+            else:
+                await update.message.reply_text("❌ Невідомий стан. Використовуйте /start")
         else:
-            # Видаляємо невідомі повідомлення
-            try:
-                await update.message.delete()
-            except:
-                pass
+            await update.message.reply_text(
+                "👋 Використовуйте /start для відображення меню"
+            )

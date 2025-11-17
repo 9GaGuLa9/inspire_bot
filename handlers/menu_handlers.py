@@ -14,18 +14,31 @@ class MenuHandlers:
         self.bot = bot
     
     async def show_start_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Стартове повідомлення"""
+        """Показати головне меню"""
         keyboard = [
-            [InlineKeyboardButton("🗂 База користувачів", callback_data='users_base')],
-            [InlineKeyboardButton("🔍 Шукати дарувальників", callback_data='search_gifters')],
-            [InlineKeyboardButton("ℹ️ Допомога", callback_data='help')]
+            [InlineKeyboardButton("👥 База користувачів", callback_data='users_base')],
+            [InlineKeyboardButton("🆔 Отримати ID", callback_data='get_streamer_id')],
+            [InlineKeyboardButton("❓ Допомога", callback_data='help')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await update.message.reply_text(
-            START_MESSAGE,
-            reply_markup=reply_markup
+        welcome_text = (
+            "🤖 **Tango Bot**\n\n"
+            "Оберіть дію з меню:"
         )
+        
+        if update.callback_query:
+            await update.callback_query.edit_message_text(
+                welcome_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text(
+                welcome_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
     
     async def show_main_menu(self, query):
         """Головне меню"""
@@ -64,7 +77,7 @@ class MenuHandlers:
             [InlineKeyboardButton("➖ Видалити стрімера", callback_data='remove_streamer')],
             [InlineKeyboardButton("📋 Показати всіх", callback_data='show_streamers')],
             [InlineKeyboardButton("🔎 Пошук по імені", callback_data='search_streamer')],
-            [InlineKeyboardButton("🔍 Фільтрувати за датою", callback_data='filter_streamers')],
+            [InlineKeyboardButton("🔍 Фільтрувати", callback_data='filter_streamers')],
             [InlineKeyboardButton("📊 Статистика", callback_data='show_statistics')],
             [InlineKeyboardButton("◀️ Назад", callback_data='users_base')]
         ]
