@@ -911,3 +911,38 @@ class DatabaseManager:
         except Exception as e:
             logging.error(f"Error updating mentor field: {e}")
             return False
+
+    def update_mentor_profile(self, mentor_id: int, new_name: str, new_user_id: str, 
+                            new_profile_url: str, old_name: str) -> bool:
+        """Оновлення профілю ментора та його імені у всіх стрімерів"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # 1. Оновлюємо ментора
+                cursor.execute('''
+                    UPDATE mentors 
+                    SET mentor_name = ?,
+                        user_id = ?,
+                        profile_url = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (new_name, new_user_id, new_profile_url, mentor_id))
+                
+                if cursor.rowcount == 0:
+                    return False
+                
+                # 2. Оновлюємо ім'я ментора у всіх стрімерів
+                cursor.execute('''
+                    UPDATE streamers 
+                    SET mentor_name = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE mentor_name = ?
+                ''', (new_name, old_name))
+                
+                logging.info(f"Updated mentor profile: {old_name} -> {new_name}, affected {cursor.rowcount} streamers")
+                
+                return True
+        except Exception as e:
+            logging.error(f"Error updating mentor profile: {e}")
+            return False

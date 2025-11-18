@@ -759,7 +759,7 @@ class MentorHandlers:
     async def process_edit_mentor_url(self, update: Update, url: str, user_id: int):
         """Обробка нового URL ментора"""
         if 'tango.me' not in url:
-            await update.message.reply_text("❌ Некоректне посилання!")
+            await update.message.reply_text("❌ Некоректне посилання! Надішліть посилання на Tango.")
             return
         
         try:
@@ -792,13 +792,15 @@ class MentorHandlers:
                     await processing_msg.edit_text("❌ Ментора не знайдено!")
                     return
                 
-                # Оновлюємо ментора
-                success = self.bot.db.add_mentor(
-                    mentor_name=user_name,
-                    user_id=user_id_scraped,
-                    profile_url=profile_url,
-                    telegram_username=mentor.get('telegram_username'),
-                    instagram_url=mentor.get('instagram_url')
+                old_mentor_name = mentor['mentor_name']
+                
+                # Оновлюємо ментора (не створюємо нового!)
+                success = self.bot.db.update_mentor_profile(
+                    mentor_id=mentor_id,
+                    new_name=user_name,
+                    new_user_id=user_id_scraped,
+                    new_profile_url=profile_url,
+                    old_name=old_mentor_name
                 )
                 
                 if success:
@@ -808,7 +810,8 @@ class MentorHandlers:
                     await processing_msg.edit_text(
                         f"✅ Профіль оновлено!\n\n"
                         f"**Нове ім'я:** {user_name}\n"
-                        f"**Новий ID:** `{user_id_scraped}`",
+                        f"**Новий ID:** `{user_id_scraped}`\n\n"
+                        f"Ім'я ментора також оновлено у всіх стрімерів.",
                         reply_markup=reply_markup,
                         parse_mode='Markdown'
                     )
