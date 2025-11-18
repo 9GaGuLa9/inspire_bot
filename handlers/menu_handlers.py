@@ -41,17 +41,18 @@ class MenuHandlers:
             )
     
     async def show_main_menu(self, query):
-        """Головне меню"""
+        """Показати головне меню через callback query"""
         keyboard = [
-            [InlineKeyboardButton("🗂 База користувачів", callback_data='users_base')],
-            [InlineKeyboardButton("🔍 Шукати дарувальників", callback_data='search_gifters')],
-            [InlineKeyboardButton("ℹ️ Допомога", callback_data='help')]
+            [InlineKeyboardButton("👥 База користувачів", callback_data='users_base')],
+            [InlineKeyboardButton("🆔 Отримати ID", callback_data='get_streamer_id')],
+            [InlineKeyboardButton("❓ Допомога", callback_data='help')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            "🤖 Головне меню\n\nОберіть дію:",
-            reply_markup=reply_markup
+            "🤖 **Tango Bot**\n\nОберіть дію з меню:",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
         )
     
     async def show_users_base_menu(self, query):

@@ -73,6 +73,8 @@ class TangoBot:
                 await self.streamer_handlers.process_edit_telegram(update, text, user_id)
             elif state == 'waiting_edit_instagram':
                 await self.streamer_handlers.process_edit_instagram(update, text, user_id)
+            
+            # Ментори - додавання
             elif state == 'waiting_mentor_name':
                 await self.mentor_handlers.process_mentor_name(update, text, user_id)
             elif state == 'waiting_mentor_url':
@@ -81,6 +83,15 @@ class TangoBot:
                 await self.mentor_handlers.process_mentor_telegram(update, text, user_id)
             elif state == 'waiting_mentor_instagram':
                 await self.mentor_handlers.process_mentor_instagram(update, text, user_id)
+            
+            # Ментори - редагування
+            elif state == 'waiting_edit_mentor_url':
+                await self.mentor_handlers.process_edit_mentor_url(update, text, user_id)
+            elif state == 'waiting_edit_mentor_telegram':
+                await self.mentor_handlers.process_edit_mentor_telegram(update, text, user_id)
+            elif state == 'waiting_edit_mentor_instagram':
+                await self.mentor_handlers.process_edit_mentor_instagram(update, text, user_id)
+            
             else:
                 await update.message.reply_text("❌ Невідомий стан. Використовуйте /start")
         else:

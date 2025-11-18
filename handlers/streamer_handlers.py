@@ -21,25 +21,29 @@ class StreamerHandlers:
         
         instruction_msg = await query.edit_message_text(
             "➕ Додавання стрімера\n\n"
-            "Надішліть посилання на профіль або стрім стрімера:\n\n",
+            "Надішліть посилання на профіль або стрім стрімера:",
             parse_mode='Markdown'
         )
         
         if user_id not in self.bot.temp_data:
             self.bot.temp_data[user_id] = {}
-        self.bot.temp_data[user_id]['instruction_message_id'] = instruction_msg.message_id
+        self.bot.temp_data[user_id]['last_bot_message_id'] = instruction_msg.message_id
 
     async def process_streamer_url(self, update: Update, url: str, user_id: int):
         """Обробка URL стрімера через API"""
-        if 'tango.me' not in url:
-            await update.message.reply_text("❌ Некоректне посилання! Надішліть посилання на Tango.")
-            return
-        
+        # Видаляємо повідомлення користувача
         try:
             await update.message.delete()
         except:
             pass
         
+        # Видаляємо останнє повідомлення бота
+        await self.delete_last_bot_message(update.effective_chat, user_id)
+
+        if 'tango.me' not in url:
+            await update.message.reply_text("❌ Некоректне посилання! Надішліть посилання на Tango.")
+            return
+
         try:
             if user_id in self.bot.temp_data and 'instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['instruction_message_id']
@@ -244,6 +248,7 @@ class StreamerHandlers:
             [InlineKeyboardButton("📅 За роком", callback_data='filter_by_year')],
             [InlineKeyboardButton("📆 За місяцем", callback_data='filter_by_month')],
             [InlineKeyboardButton("🎓 За ментором", callback_data='filter_by_mentor')],
+            [InlineKeyboardButton("⭕ Без ментора", callback_data='filter_no_mentor')],
             [InlineKeyboardButton("◀️ Назад", callback_data='streamers_menu')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -302,13 +307,14 @@ class StreamerHandlers:
             period_text = "весь час"
         
         if not streamers:
-            text = f"❌ У ментора **{mentor_name}** немає стрімерів за обраний період ({period_text})!"
+            text = f"❌ У ментора {mentor_name} немає стрімерів за обраний період ({period_text})!"
             keyboard = [
                 [InlineKeyboardButton("🔄 Скинути фільтри", callback_data='reset_filters')],
                 [InlineKeyboardButton("◀️ Назад", callback_data='filter_by_mentor')]
             ]
         else:
-            text = f"🎓 Стрімери ментора **{mentor_name}** ({period_text}):\n"
+            # Використовуємо звичайний текст без Markdown для назви ментора
+            text = f"🎓 Стрімери ментора {mentor_name} ({period_text}):\n"
             text += f"Знайдено: {len(streamers)}\n\n"
             
             # Показуємо перших 10
@@ -323,14 +329,14 @@ class StreamerHandlers:
                 except:
                     date_str = "невідомо"
                 
-                text += f"{i}. **{name}** (додано: {date_str})\n"
-                text += f"   ID: `{streamer_id}`\n"
-                text += f"   [Профіль]({profile_url})\n"
+                text += f"{i}. {name} (додано: {date_str})\n"
+                text += f"   ID: {streamer_id}\n"
+                text += f"   Профіль: {profile_url}\n"
                 
                 if tg_name:
                     text += f"   📱 @{tg_name}\n"
                 if instagram_url:
-                    text += f"   📷 [Instagram]({instagram_url})\n"
+                    text += f"   📷 Instagram: {instagram_url}\n"
                 if platform:
                     text += f"   📲 {platform}\n"
                 
@@ -366,75 +372,69 @@ class StreamerHandlers:
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        # Відправляємо БЕЗ parse_mode='Markdown'
         await query.edit_message_text(
             text,
             reply_markup=reply_markup,
-            parse_mode='Markdown',
             disable_web_page_preview=True
         )
 
     async def show_streamers_without_mentor(self, query):
         """Показати стрімерів без ментора"""
-        # Отримуємо всіх стрімерів
-        all_streamers = self.bot.db.get_all_streamers()
-        
-        # Фільтруємо тих, у кого немає ментора
-        streamers = [s for s in all_streamers if not s[7]]  # s[7] - mentor_name
+        streamers = self.bot.db.get_streamers_without_mentor()
         
         if not streamers:
-            text = "✅ У всіх стрімерів призначені ментори!"
             keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='filter_streamers')]]
-        else:
-            text = f"⭕ Стрімери без ментора ({len(streamers)}):\n\n"
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(
+                "✅ Всі стрімери мають призначених менторів!",
+                reply_markup=reply_markup
+            )
+            return
+        
+        text = f"⭕ Стрімери без ментора ({len(streamers)}):\n\n"
+        
+        # Показуємо перших 10
+        display_limit = 10
+        for i, streamer_data in enumerate(streamers[:display_limit], 1):
+            name, user_id, profile_url, tg_name, tg_url, instagram_url, platform, mentor_name, created_at = streamer_data
             
-            # Показуємо перших 10
-            display_limit = 10
-            for i, streamer_data in enumerate(streamers[:display_limit], 1):
-                name = streamer_data[0]
-                user_id = streamer_data[1]
-                profile_url = streamer_data[2]
-                tg_name = streamer_data[3]
-                instagram_url = streamer_data[5]
-                platform = streamer_data[6]
-                created_at = streamer_data[8]
-                
-                # Форматуємо дату
-                try:
-                    from datetime import datetime
-                    date = datetime.fromisoformat(created_at)
-                    date_str = date.strftime("%d.%m.%Y")
-                except:
-                    date_str = "невідомо"
-                
-                text += f"{i}. **{name}** (додано: {date_str})\n"
-                text += f"   ID: `{user_id}`\n"
-                text += f"   [Профіль]({profile_url})\n"
-                
-                if tg_name:
-                    text += f"   📱 @{tg_name}\n"
-                if instagram_url:
-                    text += f"   📷 [Instagram]({instagram_url})\n"
-                if platform:
-                    text += f"   📲 {platform}\n"
-                
-                text += "\n"
+            # Форматуємо дату
+            try:
+                date = datetime.fromisoformat(created_at)
+                date_str = date.strftime("%d.%m.%Y")
+            except:
+                date_str = "невідомо"
             
-            if len(streamers) > display_limit:
-                text += f"... та ще {len(streamers) - display_limit} стрімерів\n\n"
-                text += f"💡 Показано перших {display_limit} результатів\n"
+            text += f"{i}. **{name}** (додано: {date_str})\n"
+            text += f"   ID: `{user_id}`\n"
+            text += f"   [Профіль]({profile_url})\n"
             
-            # Кнопки редагування
-            keyboard = []
-            for streamer_data in streamers[:display_limit]:
-                name = streamer_data[0]
-                user_id = streamer_data[1]
-                short_name = name[:20] + "..." if len(name) > 20 else name
-                keyboard.append([InlineKeyboardButton(
-                    f"✏️ {short_name}", 
-                    callback_data=f'edit_streamer_{user_id}'
-                )])
+            if tg_name:
+                text += f"   📱 @{tg_name}\n"
+            if instagram_url:
+                text += f"   📷 [Instagram]({instagram_url})\n"
+            if platform:
+                text += f"   📲 {platform}\n"
             
-            keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data='filter_streamers')])
+            text += "\n"
+        
+        if len(streamers) > display_limit:
+            text += f"... та ще {len(streamers) - display_limit} стрімерів\n\n"
+            text += f"💡 Показано перших {display_limit} результатів\n"
+        
+        # Кнопки редагування
+        keyboard = []
+        for streamer_data in streamers[:display_limit]:
+            name = streamer_data[0]
+            user_id = streamer_data[1]
+            short_name = name[:20] + "..." if len(name) > 20 else name
+            keyboard.append([InlineKeyboardButton(
+                f"✏️ {short_name}", 
+                callback_data=f'edit_streamer_{user_id}'
+            )])
+        
+        keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data='filter_streamers')])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -874,112 +874,126 @@ class StreamerHandlers:
     async def start_add_telegram(self, query, user_id):
         """Початок додавання Telegram"""
         self.bot.user_states[user_id] = 'waiting_telegram_url'
-        self.bot.temp_data[user_id]['telegram_instruction_message_id'] = query.message.message_id
         
-        await query.edit_message_text(
+        instruction_msg = await query.edit_message_text(
             "📱 Додавання Telegram\n\n"
-            "Надішліть посилання на Telegram профіль:\n\n",
+            "Надішліть посилання на Telegram профіль або username:\n\n"
+            "Приклад: `@username` або `https://t.me/username`",
             parse_mode='Markdown'
         )
+        
+        if user_id not in self.bot.temp_data:
+            self.bot.temp_data[user_id] = {}
+        self.bot.temp_data[user_id]['last_bot_message_id'] = instruction_msg.message_id
 
     async def process_telegram_url(self, update: Update, url: str, user_id: int):
         """Обробка Telegram URL"""
+        # Видаляємо повідомлення користувача
         try:
             await update.message.delete()
         except:
             pass
         
-        try:
-            if user_id in self.bot.temp_data and 'telegram_instruction_message_id' in self.bot.temp_data[user_id]:
-                instruction_msg_id = self.bot.temp_data[user_id]['telegram_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
-                del self.bot.temp_data[user_id]['telegram_instruction_message_id']
-        except Exception as e:
-            logging.error(f"Помилка видалення інструктивного повідомлення Telegram: {e}")
+        # Видаляємо останнє повідомлення бота
+        await self.delete_last_bot_message(update.effective_chat, user_id)
             
         try:
             url = url.strip()
             username = None
             
             if 't.me/' in url:
-                username = url.split('t.me/')[-1].split('/')[0].split('?')[0]
+                username = url.split('t.me/')[-1].split('/')[0].split('?')[0].replace('@', '')
             elif url.startswith('@'):
                 username = url[1:]
-            elif not url.startswith('http') and not url.startswith('@'):
-                username = url
-            
-            if not username:
-                temp_msg = await update.effective_chat.send_message("❌ Некоректне посилання на Telegram!")
-                import asyncio
-                await asyncio.sleep(3)
-                try:
-                    await temp_msg.delete()
-                except:
-                    pass
-                await self.send_additional_data_menu(update.effective_chat, user_id)
-                return
+            else:
+                username = url.replace('@', '')
             
             if user_id in self.bot.temp_data:
                 self.bot.temp_data[user_id]['tg_name'] = username
                 self.bot.temp_data[user_id]['tg_url'] = f"https://t.me/{username}"
             
-            temp_success = await update.effective_chat.send_message(
-                f"✅ Telegram додано: @{username}\n\n"
-                "Повертаюся до меню додаткових даних..."
-            )
-            
-            import asyncio
-            await asyncio.sleep(2)
-            try:
-                await temp_success.delete()
-            except:
-                pass
-            
-            await self.send_additional_data_menu(update.effective_chat, user_id)
-            
+            # Показуємо меню як нове повідомлення
+            msg = await self.send_additional_data_menu_as_message(update.effective_chat, user_id)
+            if msg and user_id in self.bot.temp_data:
+                self.bot.temp_data[user_id]['last_bot_message_id'] = msg.message_id
+                
         except Exception as ex:
             logging.error(f"Помилка обробки Telegram URL: {ex}")
-            temp_error = await update.effective_chat.send_message(f"❌ Помилка обробки Telegram: {str(ex)}")
-            import asyncio
-            await asyncio.sleep(5)
-            try:
-                await temp_error.delete()
-            except:
-                pass
-            await self.send_additional_data_menu(update.effective_chat, user_id)
+            msg = await update.effective_chat.send_message(f"❌ Помилка: {str(ex)}")
+            if msg and user_id in self.bot.temp_data:
+                self.bot.temp_data[user_id]['last_bot_message_id'] = msg.message_id
         
         if user_id in self.bot.user_states:
             del self.bot.user_states[user_id]
 
+    async def send_additional_data_menu_as_message(self, chat, user_id):
+        """Показати меню як нове повідомлення"""
+        if user_id not in self.bot.temp_data:
+            return await chat.send_message("❌ Помилка: дані стрімера не знайдені!")
+        
+        streamer_data = self.bot.temp_data[user_id]
+        
+        keyboard = [
+            [InlineKeyboardButton("📱 Telegram", callback_data='add_telegram')],
+            [InlineKeyboardButton("📷 Instagram", callback_data='add_instagram')],
+            [InlineKeyboardButton("📲 iOS/Android", callback_data='add_platform')],
+            [InlineKeyboardButton("🎓 Призначити ментора", callback_data=f'assign_mentor_{streamer_data.get("id")}')],
+            [InlineKeyboardButton("✅ Завершити", callback_data='finish_adding')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        current_data = f"**Поточні дані стрімера:**\n"
+        current_data += f"• **Ім'я:** {streamer_data.get('name')}\n"
+        current_data += f"• **ID:** `{streamer_data.get('id')}`\n"
+        
+        if streamer_data.get('tg_name'):
+            current_data += f"• **Telegram:** @{streamer_data.get('tg_name')}\n"
+        if streamer_data.get('instagram_url'):
+            current_data += f"• **Instagram:** [посилання]({streamer_data.get('instagram_url')})\n"
+        if streamer_data.get('platform'):
+            current_data += f"• **Платформа:** {streamer_data.get('platform')}\n"
+        if streamer_data.get('mentor_name'):
+            current_data += f"• **Ментор:** {streamer_data.get('mentor_name')}\n"
+        
+        return await chat.send_message(
+            f"➕ Додавання додаткових даних\n\n"
+            f"{current_data}\n"
+            f"Що бажаєте додати?",
+            reply_markup=reply_markup,
+            parse_mode='Markdown',
+            disable_web_page_preview=True
+        )
+
     async def start_add_instagram(self, query, user_id):
         """Початок додавання Instagram"""
         self.bot.user_states[user_id] = 'waiting_instagram_url'
-        self.bot.temp_data[user_id]['instagram_instruction_message_id'] = query.message.message_id
         
-        await query.edit_message_text(
+        instruction_msg = await query.edit_message_text(
             "📷 Додавання Instagram\n\n"
-            "Надішліть посилання на Instagram профіль:\n\n",
+            "Надішліть посилання на Instagram профіль:\n\n"
+            "Приклад: `https://instagram.com/username`",
             parse_mode='Markdown'
         )
+        
+        if user_id not in self.bot.temp_data:
+            self.bot.temp_data[user_id] = {}
+        self.bot.temp_data[user_id]['last_bot_message_id'] = instruction_msg.message_id
 
-    async def process_instagram_url(self, update: Update, url: str, user_id: int):
+    async def process_instagram_url(self, update: Update, instagram_url: str, user_id: int):
         """Обробка Instagram URL"""
+        # Визначаємо url на початку методу
+        url = instagram_url.strip()
+        
+        # Видаляємо повідомлення користувача
         try:
             await update.message.delete()
         except:
             pass
         
-        try:
-            if user_id in self.bot.temp_data and 'instagram_instruction_message_id' in self.bot.temp_data[user_id]:
-                instruction_msg_id = self.bot.temp_data[user_id]['instagram_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
-                del self.bot.temp_data[user_id]['instagram_instruction_message_id']
-        except Exception as e:
-            logging.error(f"Помилка видалення інструктивного повідомлення Instagram: {e}")
+        # Видаляємо останнє повідомлення бота
+        await self.delete_last_bot_message(update.effective_chat, user_id)
             
         try:
-            url = url.strip()
-            
             if 'instagram.com' not in url:
                 temp_msg = await update.effective_chat.send_message("❌ Некоректне посилання на Instagram!")
                 import asyncio
@@ -988,39 +1002,35 @@ class StreamerHandlers:
                     await temp_msg.delete()
                 except:
                     pass
-                await self.send_additional_data_menu(update.effective_chat, user_id)
+                msg = await self.send_additional_data_menu_as_message(update.effective_chat, user_id)
+                if msg and user_id in self.bot.temp_data:
+                    self.bot.temp_data[user_id]['last_bot_message_id'] = msg.message_id
                 return
             
             if user_id in self.bot.temp_data:
                 self.bot.temp_data[user_id]['instagram_url'] = url
             
-            temp_success = await update.effective_chat.send_message(
-                f"✅ Instagram додано!\n\n"
-                "Повертаюся до меню додаткових даних..."
-            )
-            
-            import asyncio
-            await asyncio.sleep(2)
-            try:
-                await temp_success.delete()
-            except:
-                pass
-            
-            await self.send_additional_data_menu(update.effective_chat, user_id)
-            
+            # Показуємо меню
+            msg = await self.send_additional_data_menu_as_message(update.effective_chat, user_id)
+            if msg and user_id in self.bot.temp_data:
+                self.bot.temp_data[user_id]['last_bot_message_id'] = msg.message_id
+                
         except Exception as ex:
             logging.error(f"Помилка обробки Instagram URL: {ex}")
-            temp_error = await update.effective_chat.send_message(f"❌ Помилка обробки Instagram: {str(ex)}")
+            temp_msg = await update.effective_chat.send_message(f"❌ Помилка: {str(ex)}")
             import asyncio
             await asyncio.sleep(5)
             try:
-                await temp_error.delete()
+                await temp_msg.delete()
             except:
                 pass
-            await self.send_additional_data_menu(update.effective_chat, user_id)
+            msg = await self.send_additional_data_menu_as_message(update.effective_chat, user_id)
+            if msg and user_id in self.bot.temp_data:
+                self.bot.temp_data[user_id]['last_bot_message_id'] = msg.message_id
         
         if user_id in self.bot.user_states:
             del self.bot.user_states[user_id]
+
 
     async def send_additional_data_menu(self, chat, user_id):
         """Надсилає меню додаткових даних як нове повідомлення"""
@@ -1079,8 +1089,8 @@ class StreamerHandlers:
             reply_markup=reply_markup
         )
 
-    async def set_platform(self, query, user_id, platform):
-        """Встановлення платформи"""
+    async def set_platform_new_streamer(self, query, user_id, platform):
+        """Встановлення платформи для нового стрімера"""
         if user_id in self.bot.temp_data:
             self.bot.temp_data[user_id]['platform'] = platform
             await query.edit_message_text(
@@ -1100,10 +1110,11 @@ class StreamerHandlers:
         
         streamer_data = self.bot.temp_data[user_id]
         
+        # Зберігаємо стрімера
         success = self.bot.db.add_streamer(
-            name=streamer_data.get('name'),
-            user_id=streamer_data.get('id'),
-            profile_url=streamer_data.get('profile_url'),
+            name=streamer_data['name'],
+            user_id=streamer_data['id'],
+            profile_url=streamer_data['profile_url'],
             tg_name=streamer_data.get('tg_name'),
             tg_url=streamer_data.get('tg_url'),
             instagram_url=streamer_data.get('instagram_url'),
@@ -1111,59 +1122,26 @@ class StreamerHandlers:
             mentor_name=streamer_data.get('mentor_name')
         )
         
-        keyboard = [
-            [InlineKeyboardButton("✏️ Редагувати", callback_data=f"edit_streamer_{streamer_data.get('id')}")],
-            [InlineKeyboardButton("◀️ Головне меню", callback_data='main_menu')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
         if success:
-            # Отримуємо дату додавання
-            current_date = datetime.now().strftime("%d.%m.%Y %H:%M")
-            
-            report = f"✅ Стрімера додано успішно!\n\n"
-            report += f"**Ім'я:** {streamer_data.get('name')}\n"
-            report += f"**ID:** `{streamer_data.get('id')}`\n"
-            report += f"**Дата додавання:** {current_date}\n"
-            report += f"**Профіль:** `{streamer_data.get('profile_url')}` 📋\n"
-
-            if streamer_data.get('tg_name'):
-                tg_url = f"https://t.me/{streamer_data.get('tg_name').replace('@', '')}"
-                report += f"**Telegram:** `{tg_url}` 📋\n"
-
-            if streamer_data.get('instagram_url'):
-                report += f"**Instagram:** `{streamer_data.get('instagram_url')}` 📋\n"
-            
-            if streamer_data.get('platform'):
-                report += f"**Платформа:** {streamer_data.get('platform')}\n"
-            
-            empty_fields = []
-            if not streamer_data.get('tg_name'):
-                empty_fields.append("Telegram")
-            if not streamer_data.get('instagram_url'):
-                empty_fields.append("Instagram")
-            if not streamer_data.get('platform'):
-                empty_fields.append("Платформа")
-            
-            if empty_fields:
-                report += f"\n*Незаповнені поля: {', '.join(empty_fields)}*"
+            # Якщо був призначений ментор, оновлюємо дату призначення
+            if streamer_data.get('mentor_name'):
+                self.bot.db.update_mentor_last_assigned(streamer_data['mentor_name'])
             
             await query.edit_message_text(
-                report,
+                f"✅ Стрімера успішно додано!\n\n"
+                f"**Ім'я:** {streamer_data['name']}\n"
+                f"**ID:** `{streamer_data['id']}`\n"
+                f"[Профіль]({streamer_data['profile_url']})",
                 parse_mode='Markdown',
-                reply_markup=reply_markup,
-                disable_web_page_preview=True
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🏠 Головне меню", callback_data='main_menu')
+                ]])
             )
-        else:
-            await query.edit_message_text(
-                "❌ Помилка збереження стрімера!",
-                reply_markup=reply_markup
-            )
-        
-        if user_id in self.bot.temp_data:
+            
+            # Очищаємо temp_data
             del self.bot.temp_data[user_id]
-        if user_id in self.bot.user_states:
-            del self.bot.user_states[user_id]
+        else:
+            await query.edit_message_text("❌ Помилка збереження стрімера!")
 
     async def start_remove_streamer(self, query, user_id):
         """Початок видалення стрімера"""
@@ -1352,76 +1330,6 @@ class StreamerHandlers:
             text,
             reply_markup=reply_markup,
             parse_mode='Markdown',
-            disable_web_page_preview=True
-        )
-
-    async def show_edit_streamer_menu(self, query, user_id, streamer_id):
-        """Показати меню редагування стрімера"""
-        streamer = self.bot.db.get_streamer_by_id(streamer_id)
-        
-        if not streamer:
-            await query.edit_message_text("❌ Стрімера не знайдено!")
-            return
-        
-        # Зберігаємо ID стрімера для редагування
-        if user_id not in self.bot.temp_data:
-            self.bot.temp_data[user_id] = {}
-        self.bot.temp_data[user_id]['editing_streamer_id'] = streamer_id
-        
-        # Формуємо текст з поточними даними
-        text = f"✏️ Редагування стрімера\n\n"
-        text += f"**Ім'я:** {streamer['name']}\n"
-        text += f"**ID:** `{streamer['user_id']}`\n"
-        text += f"**Профіль:** [Переглянути]({streamer['profile_url']})\n\n"
-        
-        text += "**Додаткові дані:**\n"
-        if streamer.get('tg_name'):
-            text += f"📱 Telegram: @{streamer['tg_name']}\n"
-        else:
-            text += f"📱 Telegram: _не вказано_\n"
-        
-        if streamer.get('instagram_url'):
-            text += f"📷 Instagram: [посилання]({streamer['instagram_url']})\n"
-        else:
-            text += f"📷 Instagram: _не вказано_\n"
-        
-        if streamer.get('platform'):
-            text += f"📲 Платформа: {streamer['platform']}\n"
-        else:
-            text += f"📲 Платформа: _не вказано_\n"
-
-        if streamer.get('mentor_name'):
-            text += f"🎓 Ментор: {streamer['mentor_name']}\n"
-        else:
-            text += f"🎓 Ментор: _не призначено_\n"
-        # Кнопки редагування
-        keyboard = [
-            [InlineKeyboardButton("✏️ Змінити ім'я", callback_data=f'edit_name_{streamer_id}')],
-            [InlineKeyboardButton("📱 Змінити Telegram", callback_data=f'edit_telegram_{streamer_id}')],
-            [InlineKeyboardButton("📷 Змінити Instagram", callback_data=f'edit_instagram_{streamer_id}')],
-            [InlineKeyboardButton("📲 Змінити платформу", callback_data=f'edit_platform_{streamer_id}')],
-            [InlineKeyboardButton("🎓 Змінити ментора", callback_data=f'assign_mentor_{streamer_id}')]  # ДОДАТИ ЦЕ
-        ]
-        
-        # Кнопки видалення полів
-        delete_buttons = []
-        if streamer.get('tg_name'):
-            delete_buttons.append(InlineKeyboardButton("🗑 Видалити Telegram", callback_data=f'remove_telegram_{streamer_id}'))
-        if streamer.get('instagram_url'):
-            delete_buttons.append(InlineKeyboardButton("🗑 Видалити Instagram", callback_data=f'remove_instagram_{streamer_id}'))
-        if streamer.get('platform'):
-            delete_buttons.append(InlineKeyboardButton("🗑 Видалити платформу", callback_data=f'remove_platform_{streamer_id}'))
-        
-        if delete_buttons:
-            for btn in delete_buttons:
-                keyboard.append([btn])
-        
-        keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data='streamers_menu')])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            text,
-            reply_markup=reply_markup,
             disable_web_page_preview=True
         )
 
@@ -1971,82 +1879,6 @@ class StreamerHandlers:
             parse_mode='Markdown'
         )
 
-    async def update_platform(self, query, user_id, streamer_id, platform):
-        """Оновлення платформи"""
-        streamer = self.bot.db.get_streamer_by_id(streamer_id)
-        if not streamer:
-            await query.edit_message_text("❌ Стрімера не знайдено!")
-            return
-        
-        success = self.bot.db.add_streamer(
-            name=streamer['name'],
-            user_id=streamer_id,
-            profile_url=streamer['profile_url'],
-            tg_name=streamer.get('tg_name'),
-            tg_url=streamer.get('tg_url'),
-            instagram_url=streamer.get('instagram_url'),
-            platform=platform
-        )
-        
-        if success:
-            await query.edit_message_text(
-                f"✅ Платформу оновлено на: **{platform}**\n\n"
-                "Повертаюся до меню редагування...",
-                parse_mode='Markdown'
-            )
-            import asyncio
-            await asyncio.sleep(1)
-            await self.show_edit_streamer_menu(query, user_id, streamer_id)
-        else:
-            await query.edit_message_text("❌ Помилка оновлення платформи!")
-
-    async def remove_field(self, query, user_id, streamer_id, field_name):
-        """Видалення поля (Telegram, Instagram або платформи)"""
-        streamer = self.bot.db.get_streamer_by_id(streamer_id)
-        if not streamer:
-            await query.edit_message_text("❌ Стрімера не знайдено!")
-            return
-        
-        # Підготовка даних без видаленого поля
-        update_data = {
-            'name': streamer['name'],
-            'user_id': streamer_id,
-            'profile_url': streamer['profile_url'],
-            'tg_name': streamer.get('tg_name'),
-            'tg_url': streamer.get('tg_url'),
-            'instagram_url': streamer.get('instagram_url'),
-            'platform': streamer.get('platform')
-        }
-        
-        field_labels = {
-            'telegram': 'Telegram',
-            'instagram': 'Instagram',
-            'platform': 'Платформу'
-        }
-        
-        # Видаляємо відповідне поле
-        if field_name == 'telegram':
-            update_data['tg_name'] = None
-            update_data['tg_url'] = None
-        elif field_name == 'instagram':
-            update_data['instagram_url'] = None
-        elif field_name == 'platform':
-            update_data['platform'] = None
-        
-        success = self.bot.db.add_streamer(**update_data)
-        
-        if success:
-            await query.edit_message_text(
-                f"✅ {field_labels.get(field_name, 'Поле')} видалено!\n\n"
-                "Повертаюся до меню редагування...",
-                parse_mode='Markdown'
-            )
-            import asyncio
-            await asyncio.sleep(1)
-            await self.show_edit_streamer_menu(query, user_id, streamer_id)
-        else:
-            await query.edit_message_text("❌ Помилка видалення поля!")
-
     async def start_search_streamer(self, query, user_id):
         """Початок пошуку стрімера по імені"""
         self.bot.user_states[user_id] = 'waiting_search_query'
@@ -2061,7 +1893,7 @@ class StreamerHandlers:
         
         if user_id not in self.bot.temp_data:
             self.bot.temp_data[user_id] = {}
-        self.bot.temp_data[user_id]['search_instruction_message_id'] = instruction_msg.message_id
+        self.bot.temp_data[user_id]['last_bot_message_id'] = instruction_msg.message_id
 
     async def process_search_query(self, update: Update, query_text: str, user_id: int):
         """Обробка пошукового запиту"""
@@ -2261,6 +2093,7 @@ class StreamerHandlers:
     async def show_mentor_selection(self, query, user_id, streamer_id):
         """Показати список менторів для призначення стрімеру"""
         import logging
+        from datetime import datetime
         
         # Логування для діагностики
         logging.info(f"show_mentor_selection called with streamer_id: {streamer_id}, type: {type(streamer_id)}")
@@ -2271,55 +2104,41 @@ class StreamerHandlers:
         
         streamer = self.bot.db.get_streamer_by_id(streamer_id)
         
-        # ВИПРАВЛЕНО: Додано підтримку нових стрімерів
+        # Перевіряємо чи стрімер існує в БД або в temp_data (новий стрімер)
+        is_new_streamer = False
         if not streamer:
-            # Перевіряємо чи це новий стрімер в temp_data
-            if user_id in self.bot.temp_data:
-                temp_streamer = self.bot.temp_data[user_id]
-                if temp_streamer.get('id') == streamer_id:
-                    logging.info(f"Streamer found in temp_data: {temp_streamer.get('name')}")
-                    # Використовуємо дані з temp_data
-                    streamer = {
-                        'name': temp_streamer.get('name'),
-                        'user_id': temp_streamer.get('id'),
-                        'mentor_name': temp_streamer.get('mentor_name')
-                    }
-                else:
-                    logging.error(f"Streamer ID mismatch: {temp_streamer.get('id')} != {streamer_id}")
-            
-            if not streamer:
+            # Можливо це новий стрімер, який ще не збережено
+            if user_id in self.bot.temp_data and self.bot.temp_data[user_id].get('id') == streamer_id:
+                is_new_streamer = True
+                streamer = {
+                    'name': self.bot.temp_data[user_id].get('name'),
+                    'user_id': streamer_id,
+                    'mentor_name': self.bot.temp_data[user_id].get('mentor_name')
+                }
+                logging.info(f"Found new streamer in temp_data: {streamer['name']}")
+            else:
                 logging.error(f"Streamer not found for id: {streamer_id}")
                 
-                # Спробуємо показати що є в базі для діагностики
-                all_streamers = self.bot.db.get_all_streamers()
-                logging.info(f"Total streamers in DB: {len(all_streamers)}")
-                if all_streamers:
-                    logging.info(f"First streamer user_id: {all_streamers[0][1]}")
-                
-                keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='streamers_menu')]]
+                keyboard = [[InlineKeyboardButton("◀️ Головне меню", callback_data='main_menu')]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                
                 await query.edit_message_text(
-                    f"❌ Стрімера не знайдено!\n\n"
-                    f"**Debug info:**\n"
-                    f"Шуканий ID: `{streamer_id}`\n"
-                    f"Стрімерів у БД: {len(all_streamers)}",
-                    parse_mode='Markdown',
-                    reply_markup=reply_markup
+                    f"❌ Стрімера з ID `{streamer_id}` не знайдено!",
+                    reply_markup=reply_markup,
+                    parse_mode='Markdown'
                 )
                 return
         
-        logging.info(f"Streamer found: {streamer['name']}")
-        
-        # Отримуємо менторів, сортованих за датою останнього призначення
+        # Отримуємо менторів відсортованих за датою останнього призначення
         mentors = self.bot.db.get_all_mentors(sort_by_assignment=True)
         stats = self.bot.db.get_mentor_statistics()
         
         if not mentors:
-            keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data=f'edit_streamer_{streamer_id}')]]
+            back_callback = 'add_more_data' if is_new_streamer else f'edit_streamer_{streamer_id}'
+            keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data=back_callback)]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(
-                "❌ Спочатку додайте менторів через меню 'Ментори'",
+                "❌ База менторів порожня!\n\n"
+                "Спочатку додайте менторів через меню 'Ментори'",
                 reply_markup=reply_markup
             )
             return
@@ -2333,34 +2152,43 @@ class StreamerHandlers:
             text += f"**Поточний ментор:** _не призначено_\n"
         
         text += f"\n📊 Оберіть ментора:\n"
-        text += f"_(відсортовано за датою останнього призначення)_\n"
+        text += f"_(відсортовано за останнім призначенням)_\n"
         
         keyboard = []
         
-        # ВИПРАВЛЕНО: Використовуємо mentor_id замість mentor_name
-        # Додаємо кнопку "Без ментора"
-        no_mentor_count = stats.get('Без ментора', {}).get('count', 0)
-        keyboard.append([InlineKeyboardButton(
-            f"⭕ Без ментора ({no_mentor_count} стрімерів)",
-            callback_data=f'select_mentor_{streamer_id}_0'  # ← 0 = без ментора
-        )])
-        
-        # Додаємо менторів
+        # Додаємо менторів (БЕЗ кнопки "Без ментора")
         for mentor_data in mentors:
-            mentor_id, mentor_name = mentor_data[0], mentor_data[1]
+            mentor_id = mentor_data[0]
+            mentor_name = mentor_data[1]
+            last_assignment = mentor_data[8]  # last_assigned_at - 9-й елемент (індекс 8)
+            telegram_chat_id = mentor_data[5]  # telegram_chat_id - 6-й елемент (індекс 5)
+            
             mentor_stats = stats.get(mentor_name, {})
             count = mentor_stats.get('count', 0)
-            is_activated = mentor_stats.get('is_activated', False)
+            is_activated = telegram_chat_id is not None
             
             activation_mark = "✅" if is_activated else "⚠️"
             
-            # ВИПРАВЛЕНО: Використовуємо mentor_id замість mentor_name в callback_data
+            # Форматуємо дату останнього призначення
+            if last_assignment:
+                try:
+                    date = datetime.fromisoformat(last_assignment)
+                    date_str = date.strftime("%d.%m %H:%M")
+                    button_text = f"{activation_mark} {mentor_name} ({count}) • {date_str}"
+                except:
+                    button_text = f"{activation_mark} {mentor_name} ({count})"
+            else:
+                button_text = f"{activation_mark} {mentor_name} ({count}) • ще не призначався"
+            
             keyboard.append([InlineKeyboardButton(
-                f"{activation_mark} {mentor_name} ({count} стрімерів)",
-                callback_data=f'select_mentor_{streamer_id}_{mentor_id}'  # ← ID замість імені!
+                button_text,
+                callback_data=f'select_mentor_{streamer_id}_{mentor_id}'
             )])
         
-        keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data=f'edit_streamer_{streamer_id}')])
+        # Кнопка "Назад" залежить від того, чи стрімер новий
+        back_callback = 'add_more_data' if is_new_streamer else f'edit_streamer_{streamer_id}'
+        keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data=back_callback)])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
@@ -2375,110 +2203,57 @@ class StreamerHandlers:
         
         streamer = self.bot.db.get_streamer_by_id(streamer_id)
         
-        # Підтримка НОВИХ стрімерів (ще не в БД)
+        # Перевіряємо чи це новий стрімер
+        is_new_streamer = False
         if not streamer:
             logging.info(f"Assigning mentor to NEW streamer: {streamer_id}")
             
-            if user_id not in self.bot.temp_data:
+            if user_id not in self.bot.temp_data or self.bot.temp_data[user_id].get('id') != streamer_id:
                 await query.edit_message_text("❌ Помилка: дані стрімера не знайдені!")
                 return
             
-            # Визначаємо ментора за ID
-            if mentor_id_str == '0':  # Без ментора
-                self.bot.temp_data[user_id]['mentor_name'] = None
-                mentor_text = "прибрано"
-                display_text = "_не призначено_"
-            else:
-                # Отримуємо ментора за ID
-                mentor = self.bot.db.get_mentor_by_id(int(mentor_id_str))
-                if mentor:
-                    self.bot.temp_data[user_id]['mentor_name'] = mentor['mentor_name']
-                    mentor_text = f"призначено: {mentor['mentor_name']}"
-                    display_text = mentor['mentor_name']
-                else:
-                    await query.edit_message_text("❌ Ментора не знайдено!")
-                    return
-            
-            streamer_name = self.bot.temp_data[user_id].get('name', 'Невідомий')
-            
-            keyboard = [[InlineKeyboardButton("◀️ До меню додавання", callback_data='add_more_data')]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await query.edit_message_text(
-                f"✅ Ментора {mentor_text}!\n\n"
-                f"**Стрімер:** {streamer_name}\n"
-                f"**Ментор:** {display_text}\n\n"
-                f"Не забудьте завершити додавання стрімера!",
-                reply_markup=reply_markup,
-                parse_mode='Markdown'
-            )
+            is_new_streamer = True
+        
+        # Отримуємо ім'я ментора за ID
+        mentor_id = int(mentor_id_str)
+        mentor = self.bot.db.get_mentor_by_id(mentor_id)
+        
+        if not mentor:
+            await query.answer("❌ Ментор не знайдений!", show_alert=True)
             return
         
-        # Код для ІСНУЮЧИХ стрімерів (з БД)
-        logging.info(f"Assigning mentor to EXISTING streamer: {streamer['name']}")
+        mentor_name = mentor['mentor_name']
         
-        # Визначаємо ментора за ID
-        if mentor_id_str == '0':  # Без ментора
-            mentor_name = None
-            mentor = None
-        else:
-            mentor = self.bot.db.get_mentor_by_id(int(mentor_id_str))
-            if mentor:
-                mentor_name = mentor['mentor_name']
-            else:
-                keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data=f'edit_streamer_{streamer_id}')]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(
-                    "❌ Ментора не знайдено!",
-                    reply_markup=reply_markup
-                )
-                return
-        
-        # Оновлюємо стрімера
-        success = self.bot.db.add_streamer(
-            name=streamer['name'],
-            user_id=streamer_id,
-            profile_url=streamer['profile_url'],
-            tg_name=streamer.get('tg_name'),
-            tg_url=streamer.get('tg_url'),
-            instagram_url=streamer.get('instagram_url'),
-            platform=streamer.get('platform'),
-            mentor_name=mentor_name
-        )
-        
-        if success and mentor_name:
+        if is_new_streamer:
+            # Для нового стрімера зберігаємо в temp_data
+            self.bot.temp_data[user_id]['mentor_name'] = mentor_name
+            
             # Оновлюємо дату останнього призначення ментора
             self.bot.db.update_mentor_last_assigned(mentor_name)
             
-            # Відправляємо повідомлення ментору якщо він активований
-            if mentor and mentor.get('telegram_chat_id'):
-                await self.send_mentor_notification(
-                    mentor['telegram_chat_id'],
-                    mentor_name,
-                    streamer
-                )
-        
-        keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data=f'edit_streamer_{streamer_id}')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        if success:
-            if mentor_name:
-                msg = f"✅ Ментора призначено!\n\n**Стрімер:** {streamer['name']}\n**Ментор:** {mentor_name}"
-                if mentor and not mentor.get('telegram_chat_id'):
-                    msg += "\n\n⚠️ Увага: Ментор не активований. Повідомлення не надіслано."
-            else:
-                msg = f"✅ Ментора прибрано!\n\n**Стрімер:** {streamer['name']}"
-            
-            await query.edit_message_text(
-                msg,
-                reply_markup=reply_markup,
-                parse_mode='Markdown'
-            )
+            await query.answer(f"✅ Ментора призначено: {mentor_name}", show_alert=True)
+            await self.show_additional_data_menu(query, user_id)
         else:
-            await query.edit_message_text(
-                "❌ Помилка призначення ментора!",
-                reply_markup=reply_markup
+            # Для існуючого стрімера оновлюємо в БД
+            success = self.bot.db.add_streamer(
+                name=streamer['name'],
+                user_id=streamer_id,
+                profile_url=streamer['profile_url'],
+                tg_name=streamer.get('tg_name'),
+                tg_url=streamer.get('tg_url'),
+                instagram_url=streamer.get('instagram_url'),
+                platform=streamer.get('platform'),
+                mentor_name=mentor_name
             )
+            
+            if success:
+                # Оновлюємо дату останнього призначення ментора
+                self.bot.db.update_mentor_last_assigned(mentor_name)
+                
+                await query.answer(f"✅ Ментора призначено: {mentor_name}", show_alert=True)
+                await self.show_streamer_details(query, streamer_id)
+            else:
+                await query.answer("❌ Помилка призначення ментора", show_alert=True)
 
     async def send_mentor_notification(self, chat_id, mentor_name, streamer):
         """Відправка повідомлення ментору про призначення стрімера"""
@@ -2534,7 +2309,7 @@ class StreamerHandlers:
         
         if user_id not in self.bot.temp_data:
             self.bot.temp_data[user_id] = {}
-        self.bot.temp_data[user_id]['get_id_instruction_message_id'] = instruction_msg.message_id
+        self.bot.temp_data[user_id]['last_bot_message_id'] = instruction_msg.message_id
 
     async def process_get_id_url(self, update: Update, url: str, user_id: int):
         """Обробка URL для отримання ID"""
@@ -2547,6 +2322,9 @@ class StreamerHandlers:
         except:
             pass
         
+        # Видаляємо останнє повідомлення бота
+        await self.delete_last_bot_message(update.effective_chat, user_id)
+            
         try:
             if user_id in self.bot.temp_data and 'get_id_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['get_id_instruction_message_id']
@@ -2630,3 +2408,22 @@ class StreamerHandlers:
             del self.bot.user_states[user_id]
         if user_id in self.bot.temp_data and 'get_id_instruction_message_id' in self.bot.temp_data[user_id]:
             del self.bot.temp_data[user_id]['get_id_instruction_message_id']
+
+    async def delete_last_bot_message(self, chat, user_id):
+        """Видалити останнє повідомлення бота"""
+        try:
+            if user_id in self.bot.temp_data and 'last_bot_message_id' in self.bot.temp_data[user_id]:
+                last_msg_id = self.bot.temp_data[user_id]['last_bot_message_id']
+                await chat.delete_message(last_msg_id)
+                del self.bot.temp_data[user_id]['last_bot_message_id']
+        except Exception as e:
+            logging.error(f"Помилка видалення повідомлення: {e}")
+
+    def escape_markdown(text: str) -> str:
+        """Екранування спеціальних символів для Markdown"""
+        if not text:
+            return text
+        special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+        for char in special_chars:
+            text = text.replace(char, f'\\{char}')
+        return text

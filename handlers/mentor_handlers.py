@@ -619,34 +619,20 @@ class MentorHandlers:
         text += f"**Профіль:** [Переглянути]({mentor['profile_url']})\n"
         text += f"**Стрімерів:** {streamer_count}\n\n"
         
-        text += "**Додаткові дані:**\n"
-        if mentor.get('telegram_username'):
-            text += f"📱 Telegram: @{mentor['telegram_username']}\n"
-        else:
-            text += f"📱 Telegram: _не вказано_\n"
-        
-        if mentor.get('instagram_url'):
-            text += f"📷 Instagram: [посилання]({mentor['instagram_url']})\n"
-        else:
-            text += f"📷 Instagram: _не вказано_\n"
-        
+        # Статус активації
         if mentor.get('telegram_chat_id'):
-            text += f"✅ Статус: Активовано\n"
+            text += f"✅ Статус: Активовано\n\n"
         else:
-            text += f"⚠️ Статус: Не активовано\n"
+            text += f"⚠️ Статус: Не активовано\n\n"
+        
+        text += "**Що бажаєте змінити?**"
         
         # Кнопки редагування
         keyboard = [
             [InlineKeyboardButton("✏️ Змінити профіль (Tango URL)", callback_data=f'edit_mentor_name_{mentor_id}')],
-            [InlineKeyboardButton("📱 Змінити Telegram", callback_data=f'edit_mentor_telegram_{mentor_id}')],
-            [InlineKeyboardButton("📷 Змінити Instagram", callback_data=f'edit_mentor_instagram_{mentor_id}')]
+            [InlineKeyboardButton("📱 Telegram", callback_data=f'show_mentor_telegram_{mentor_id}')],
+            [InlineKeyboardButton("📷 Instagram", callback_data=f'show_mentor_instagram_{mentor_id}')]
         ]
-        
-        # Кнопки видалення полів
-        if mentor.get('telegram_username'):
-            keyboard.append([InlineKeyboardButton("🗑 Видалити Telegram", callback_data=f'remove_mentor_telegram_{mentor_id}')])
-        if mentor.get('instagram_url'):
-            keyboard.append([InlineKeyboardButton("🗑 Видалити Instagram", callback_data=f'remove_mentor_instagram_{mentor_id}')])
         
         # Кнопка активації якщо не активовано
         if not mentor.get('telegram_chat_id'):
@@ -661,7 +647,101 @@ class MentorHandlers:
             parse_mode='Markdown',
             disable_web_page_preview=True
         )
-    
+
+    async def show_mentor_telegram_menu(self, query, user_id, mentor_id):
+        """Показати меню редагування Telegram ментора"""
+        if user_id not in self.bot.temp_data:
+            self.bot.temp_data[user_id] = {}
+        self.bot.temp_data[user_id]['editing_mentor_id'] = mentor_id
+        
+        mentor = self.bot.db.get_mentor_by_id(mentor_id)
+        if not mentor:
+            await query.edit_message_text("❌ Ментора не знайдено!")
+            return
+        
+        current_telegram = mentor.get('telegram_username', 'не вказано')
+        
+        keyboard = []
+        
+        # Кнопка змінити
+        keyboard.append([InlineKeyboardButton("✏️ Змінити", callback_data=f'edit_mentor_telegram_{mentor_id}')])
+        
+        # Кнопка видалити (тільки якщо є telegram)
+        if mentor.get('telegram_username'):
+            keyboard.append([InlineKeyboardButton("❌ Видалити", callback_data=f'delete_mentor_telegram_{mentor_id}')])
+        
+        keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data=f'edit_mentor_{mentor_id}')])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"📱 Редагування Telegram\n\n"
+            f"**Поточний Telegram:** @{current_telegram}\n\n"
+            f"Оберіть дію:",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def show_mentor_instagram_menu(self, query, user_id, mentor_id):
+        """Показати меню редагування Instagram ментора"""
+        if user_id not in self.bot.temp_data:
+            self.bot.temp_data[user_id] = {}
+        self.bot.temp_data[user_id]['editing_mentor_id'] = mentor_id
+        
+        mentor = self.bot.db.get_mentor_by_id(mentor_id)
+        if not mentor:
+            await query.edit_message_text("❌ Ментора не знайдено!")
+            return
+        
+        current_instagram = mentor.get('instagram_url', 'не вказано')
+        
+        keyboard = []
+        
+        # Кнопка змінити
+        keyboard.append([InlineKeyboardButton("✏️ Змінити", callback_data=f'edit_mentor_instagram_{mentor_id}')])
+        
+        # Кнопка видалити (тільки якщо є instagram)
+        if mentor.get('instagram_url'):
+            keyboard.append([InlineKeyboardButton("❌ Видалити", callback_data=f'delete_mentor_instagram_{mentor_id}')])
+        
+        keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data=f'edit_mentor_{mentor_id}')])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if mentor.get('instagram_url'):
+            text = f"📷 Редагування Instagram\n\n**Поточний Instagram:** [посилання]({current_instagram})\n\nОберіть дію:"
+        else:
+            text = f"📷 Редагування Instagram\n\n**Поточний Instagram:** {current_instagram}\n\nОберіть дію:"
+        
+        await query.edit_message_text(
+            text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown',
+            disable_web_page_preview=True
+        )
+
+    async def delete_mentor_telegram(self, query, mentor_id):
+        """Видалити Telegram ментора"""
+        success = self.bot.db.update_mentor_field(mentor_id, 'telegram_username', None)
+        
+        if success:
+            await query.answer("✅ Telegram видалено", show_alert=True)
+            # Повертаємось до меню ментора
+            user_id = query.from_user.id
+            await self.show_edit_mentor_menu(query, user_id, mentor_id)
+        else:
+            await query.answer("❌ Помилка видалення", show_alert=True)
+
+    async def delete_mentor_instagram(self, query, mentor_id):
+        """Видалити Instagram ментора"""
+        success = self.bot.db.update_mentor_field(mentor_id, 'instagram_url', None)
+        
+        if success:
+            await query.answer("✅ Instagram видалено", show_alert=True)
+            # Повертаємось до меню ментора
+            user_id = query.from_user.id
+            await self.show_edit_mentor_menu(query, user_id, mentor_id)
+        else:
+            await query.answer("❌ Помилка видалення", show_alert=True)
+
     async def start_edit_mentor_name(self, query, user_id, mentor_id):
         """Початок редагування профілю (через новий URL)"""
         self.bot.user_states[user_id] = 'waiting_edit_mentor_url'

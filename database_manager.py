@@ -814,3 +814,100 @@ class DatabaseManager:
         except Exception as e:
             logging.error(f"Error getting mentors with streamers: {e}")
             return []
+
+    def update_streamer_field(self, user_id: str, field: str, value) -> bool:
+        """Оновлення окремого поля стрімера"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Перевіряємо чи поле існує
+                allowed_fields = ['name', 'profile_url', 'tg_name', 'tg_url', 'instagram_url', 'platform', 'mentor_name']
+                if field not in allowed_fields:
+                    logging.error(f"Invalid field: {field}")
+                    return False
+                
+                query = f"UPDATE streamers SET {field} = ? WHERE user_id = ?"
+                cursor.execute(query, (value, user_id))
+                
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error updating streamer field: {e}")
+            return False
+
+    def get_streamers_without_mentor(self) -> List[Tuple]:
+        """Отримання стрімерів без ментора"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT name, user_id, profile_url, tg_name, tg_url, 
+                            instagram_url, platform, mentor_name, created_at
+                    FROM streamers
+                    WHERE mentor_name IS NULL OR mentor_name = ''
+                    ORDER BY created_at DESC
+                ''')
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Error getting streamers without mentor: {e}")
+            return []
+
+    def get_mentors_sorted_by_last_assignment(self) -> List[Tuple]:
+        """Отримання менторів відсортованих за датою останнього призначення"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        m.id,
+                        m.mentor_name,
+                        m.user_id,
+                        m.profile_url,
+                        m.telegram_username,
+                        m.instagram_url,
+                        m.is_activated,
+                        MAX(s.created_at) as last_assignment
+                    FROM mentors m
+                    LEFT JOIN streamers s ON m.mentor_name = s.mentor_name
+                    WHERE m.is_deleted = 0
+                    GROUP BY m.id, m.mentor_name
+                    ORDER BY last_assignment DESC NULLS LAST
+                ''')
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Error getting mentors sorted by assignment: {e}")
+            return []
+
+    def update_mentor_field(self, mentor_id: int, field_name: str, value) -> bool:
+        """Оновлення окремого поля ментора"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Отримуємо поточні дані ментора
+                mentor = self.get_mentor_by_id(mentor_id)
+                if not mentor:
+                    return False
+                
+                # Оновлюємо потрібне поле
+                if field_name == 'telegram_username':
+                    cursor.execute('''
+                        UPDATE mentors 
+                        SET telegram_username = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (value, mentor_id))
+                elif field_name == 'instagram_url':
+                    cursor.execute('''
+                        UPDATE mentors 
+                        SET instagram_url = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (value, mentor_id))
+                else:
+                    return False
+                
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error updating mentor field: {e}")
+            return False
