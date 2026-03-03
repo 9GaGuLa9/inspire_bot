@@ -659,6 +659,47 @@ class DatabaseManager:
             logging.error(f"get_all_streamers_for_diamonds: {exc}")
             return []
 
+    def get_streamers_count_by_period(self) -> dict:
+        """Повертає {\'YYYY-MM\': count} для статистики"""
+        try:
+            with self.get_connection() as conn:
+                rows = conn.execute('''
+                    SELECT strftime(\'%Y-%m\', created_at) AS period, COUNT(*) AS cnt
+                    FROM streamers
+                    GROUP BY period
+                    ORDER BY period DESC
+                ''').fetchall()
+                return {r['period']: r['cnt'] for r in rows}
+        except Exception as exc:
+            logging.error(f"get_streamers_count_by_period: {exc}")
+            return {}
+
+    def get_available_years(self) -> list:
+        try:
+            with self.get_connection() as conn:
+                rows = conn.execute('''
+                    SELECT DISTINCT CAST(strftime(\'%Y\', created_at) AS INTEGER) AS yr
+                    FROM streamers ORDER BY yr DESC
+                ''').fetchall()
+                return [r['yr'] for r in rows]
+        except Exception as exc:
+            logging.error(f"get_available_years: {exc}")
+            return []
+
+    def get_available_months_for_year(self, year: int) -> list:
+        try:
+            with self.get_connection() as conn:
+                rows = conn.execute('''
+                    SELECT DISTINCT CAST(strftime(\'%m\', created_at) AS INTEGER) AS mo
+                    FROM streamers
+                    WHERE CAST(strftime(\'%Y\', created_at) AS INTEGER) = ?
+                    ORDER BY mo
+                ''', (year,)).fetchall()
+                return [r['mo'] for r in rows]
+        except Exception as exc:
+            logging.error(f"get_available_months_for_year: {exc}")
+            return []
+
     def update_streamer_field(self, user_id: str, field: str, value) -> bool:
         allowed = {
             'name', 'profile_url', 'tg_name', 'tg_url',

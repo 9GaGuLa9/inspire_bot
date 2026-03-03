@@ -62,7 +62,10 @@ class MentorHandlers:
         try:
             if user_id in self.bot.temp_data and 'mentor_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['mentor_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         
@@ -186,7 +189,10 @@ class MentorHandlers:
                 instruction_msg_id = self.bot.temp_data[user_id].pop(
                     'mentor_telegram_instruction_message_id'
                 )
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except Exception:
             pass
 
@@ -242,7 +248,10 @@ class MentorHandlers:
         try:
             if user_id in self.bot.temp_data and 'mentor_instagram_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['mentor_instagram_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
                 del self.bot.temp_data[user_id]['mentor_instagram_instruction_message_id']
         except:
             pass
@@ -549,8 +558,6 @@ class MentorHandlers:
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         if success:
-            if hasattr(self.bot, 'sheets_service'):
-                self.bot.sheets_service.schedule_sync('mentors')
             await query.edit_message_text(
                 "✅ Ментора видалено!\n\n"
                 "Ментора можна відновити через меню 'Відновити видаленого'.",
@@ -602,8 +609,6 @@ class MentorHandlers:
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         if success:
-            if hasattr(self.bot, 'sheets_service'):
-                self.bot.sheets_service.schedule_sync('mentors')
             await query.edit_message_text(
                 "✅ Ментора відновлено успішно!",
                 reply_markup=reply_markup
@@ -769,11 +774,10 @@ class MentorHandlers:
     async def delete_mentor_telegram(self, query, mentor_id):
         """Видалити Telegram ментора"""
         success = self.bot.db.update_mentor_field(mentor_id, 'telegram_username', None)
-
+        
         if success:
-            if hasattr(self.bot, 'sheets_service'):
-                self.bot.sheets_service.schedule_sync('mentors')
             await query.answer("✅ Telegram видалено", show_alert=True)
+            # Повертаємось до меню ментора
             user_id = query.from_user.id
             await self.show_edit_mentor_menu(query, user_id, mentor_id)
         else:
@@ -782,11 +786,10 @@ class MentorHandlers:
     async def delete_mentor_instagram(self, query, mentor_id):
         """Видалити Instagram ментора"""
         success = self.bot.db.update_mentor_field(mentor_id, 'instagram_url', None)
-
+        
         if success:
-            if hasattr(self.bot, 'sheets_service'):
-                self.bot.sheets_service.schedule_sync('mentors')
             await query.answer("✅ Instagram видалено", show_alert=True)
+            # Повертаємось до меню ментора
             user_id = query.from_user.id
             await self.show_edit_mentor_menu(query, user_id, mentor_id)
         else:
@@ -820,7 +823,10 @@ class MentorHandlers:
         try:
             if user_id in self.bot.temp_data and 'edit_mentor_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['edit_mentor_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         
@@ -854,11 +860,9 @@ class MentorHandlers:
                 )
                 
                 if success:
-                    if hasattr(self.bot, 'sheets_service'):
-                        self.bot.sheets_service.schedule_sync('mentors')
                     keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data=f'edit_mentor_{mentor_id}')]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
-
+                    
                     await processing_msg.edit_text(
                         f"✅ Профіль оновлено!\n\n"
                         f"**Нове ім'я:** {user_name}\n"
@@ -902,7 +906,10 @@ class MentorHandlers:
         try:
             if user_id in self.bot.temp_data and 'edit_mentor_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['edit_mentor_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         
@@ -967,7 +974,10 @@ class MentorHandlers:
         try:
             if user_id in self.bot.temp_data and 'edit_mentor_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['edit_mentor_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         

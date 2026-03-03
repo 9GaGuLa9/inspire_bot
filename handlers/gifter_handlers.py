@@ -38,8 +38,9 @@ class GifterHandlers:
 
         try:
             if user_id in self.bot.temp_data and 'instruction_message_id' in self.bot.temp_data[user_id]:
-                await update.effective_chat.delete_message(
-                    self.bot.temp_data[user_id]['instruction_message_id']
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=self.bot.temp_data[user_id]['instruction_message_id']
                 )
         except Exception:
             pass
@@ -203,8 +204,6 @@ class GifterHandlers:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if success:
-            if hasattr(self.bot, 'sheets_service'):
-                self.bot.sheets_service.schedule_sync('gifters')
             await query.edit_message_text("✅ Дарувальника видалено успішно!", reply_markup=reply_markup)
         else:
             await query.edit_message_text("❌ Помилка при видаленні дарувальника!", reply_markup=reply_markup)

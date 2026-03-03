@@ -47,7 +47,10 @@ class StreamerHandlers:
         try:
             if user_id in self.bot.temp_data and 'instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         
@@ -409,9 +412,10 @@ class StreamerHandlers:
             except:
                 date_str = "невідомо"
             
-            text += f"{i}. **{name}** (додано: {date_str})\n"
-            text += f"   ID: `{user_id}`\n"
-            text += f"   [Профіль]({profile_url})\n"
+            import html as _h
+            text += f"{i}. <b>{_h.escape(name)}</b> (додано: {date_str})\n"
+            text += f"   ID: <code>{user_id}</code>\n"
+            text += f'   <a href="{_h.escape(profile_url)}">Профіль</a>\n'
             
             if tg_name:
                 text += f"   📱 @{tg_name}\n"
@@ -444,7 +448,7 @@ class StreamerHandlers:
         await query.edit_message_text(
             text,
             reply_markup=reply_markup,
-            parse_mode='Markdown',
+            parse_mode='HTML',
             disable_web_page_preview=True
         )
 
@@ -573,19 +577,18 @@ class StreamerHandlers:
                 except:
                     date_str = "невідомо"
                 
-                text += f"{i}. **{name}** (додано: {date_str})\n"
-                text += f"   ID: `{streamer_id}`\n"
-                text += f"   [Профіль]({profile_url})\n"
-                
+                import html as _h
+                text += f"{i}. <b>{_h.escape(name)}</b> (додано: {date_str})\n"
+                text += f"   ID: <code>{streamer_id}</code>\n"
+                text += f'   <a href="{_h.escape(profile_url)}">Профіль</a>\n'
                 if tg_name:
-                    text += f"   📱 @{tg_name}\n"
+                    text += f"   📱 @{_h.escape(tg_name)}\n"
                 if instagram_url:
-                    text += f"   📷 [Instagram]({instagram_url})\n"
+                    text += f'   📷 <a href="{_h.escape(instagram_url)}">Instagram</a>\n'
                 if platform:
-                    text += f"   📲 {platform}\n"
+                    text += f"   📲 {_h.escape(platform)}\n"
                 if mentor_name:
-                    text += f"   🎓 Ментор: {mentor_name}\n"
-
+                    text += f"   🎓 Ментор: {_h.escape(mentor_name)}\n"
                 text += "\n"
             
             if len(streamers) > display_limit:
@@ -615,7 +618,7 @@ class StreamerHandlers:
         await query.edit_message_text(
             text,
             reply_markup=reply_markup,
-            parse_mode='Markdown',
+            parse_mode='HTML',
             disable_web_page_preview=True
         )
 
@@ -663,19 +666,18 @@ class StreamerHandlers:
                 except:
                     date_str = "невідомо"
                 
-                text += f"{i}. **{name}** (додано: {date_str})\n"
-                text += f"   ID: `{streamer_id}`\n"
-                text += f"   [Профіль]({profile_url})\n"
-                
+                import html as _h
+                text += f"{i}. <b>{_h.escape(name)}</b> (додано: {date_str})\n"
+                text += f"   ID: <code>{streamer_id}</code>\n"
+                text += f'   <a href="{_h.escape(profile_url)}">Профіль</a>\n'
                 if tg_name:
-                    text += f"   📱 @{tg_name}\n"
+                    text += f"   📱 @{_h.escape(tg_name)}\n"
                 if instagram_url:
-                    text += f"   📷 [Instagram]({instagram_url})\n"
+                    text += f'   📷 <a href="{_h.escape(instagram_url)}">Instagram</a>\n'
                 if platform:
-                    text += f"   📲 {platform}\n"
+                    text += f"   📲 {_h.escape(platform)}\n"
                 if mentor_name:
-                    text += f"   🎓 Ментор: {mentor_name}\n"
-
+                    text += f"   🎓 Ментор: {_h.escape(mentor_name)}\n"
                 text += "\n"
             
             if len(streamers) > display_limit:
@@ -705,7 +707,7 @@ class StreamerHandlers:
         await query.edit_message_text(
             text,
             reply_markup=reply_markup,
-            parse_mode='Markdown',
+            parse_mode='HTML',
             disable_web_page_preview=True
         )
 
@@ -812,9 +814,9 @@ class StreamerHandlers:
         if not stats:
             text = "❌ Немає даних для статистики!"
         else:
-            text = f"📊 **Статистика стрімерів**\n\n"
-            text += f"📈 Всього в базі: **{total}** стрімерів\n\n"
-            text += "📅 **По періодах:**\n"
+            text = f"📊 <b>Статистика стрімерів</b>\n\n"
+            text += f"📈 Всього в базі: <b>{total}</b> стрімерів\n\n"
+            text += "📅 <b>По періодах:</b>\n"
             
             # Сортуємо по даті (спочатку нові)
             sorted_stats = sorted(stats.items(), reverse=True)
@@ -823,9 +825,9 @@ class StreamerHandlers:
                 try:
                     year, month = period.split('-')
                     month_name = MONTHS_UA.get(int(month), month)
-                    text += f"• {month_name} {year}: **{count}** стрімерів\n"
+                    text += f"• {month_name} {year}: <b>{count}</b> стрімерів\n"
                 except:
-                    text += f"• {period}: **{count}** стрімерів\n"
+                    text += f"• {period}: <b>{count}</b> стрімерів\n"
         
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='streamers_menu')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -833,7 +835,7 @@ class StreamerHandlers:
         await query.edit_message_text(
             text,
             reply_markup=reply_markup,
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
     async def show_additional_data_menu(self, query, user_id):
@@ -1534,7 +1536,10 @@ class StreamerHandlers:
         try:
             if user_id in self.bot.temp_data and 'edit_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['edit_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         
@@ -1753,7 +1758,10 @@ class StreamerHandlers:
         try:
             if user_id in self.bot.temp_data and 'edit_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['edit_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         
@@ -1832,7 +1840,10 @@ class StreamerHandlers:
         try:
             if user_id in self.bot.temp_data and 'edit_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['edit_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         
@@ -1924,7 +1935,10 @@ class StreamerHandlers:
         try:
             if user_id in self.bot.temp_data and 'search_instruction_message_id' in self.bot.temp_data[user_id]:
                 instruction_msg_id = self.bot.temp_data[user_id]['search_instruction_message_id']
-                await update.effective_chat.delete_message(instruction_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=instruction_msg_id
+                )
         except:
             pass
         
@@ -2455,7 +2469,10 @@ class StreamerHandlers:
         try:
             if user_id in self.bot.temp_data and 'last_bot_message_id' in self.bot.temp_data[user_id]:
                 last_msg_id = self.bot.temp_data[user_id]['last_bot_message_id']
-                await chat.delete_message(last_msg_id)
+                await self.bot.application.bot.delete_message(
+                    chat_id=chat.id,
+                    message_id=last_msg_id
+                )
                 del self.bot.temp_data[user_id]['last_bot_message_id']
         except Exception as e:
             logging.error(f"Помилка видалення повідомлення: {e}")

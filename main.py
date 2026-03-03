@@ -12,7 +12,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 async def start_command_handler(update, context):
     """Обробка команди /start з параметрами"""
