@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Sensitive data
+.env
+.env.local
+credentials/
+*.json
+!requirements.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Tango tokens
+tango_token.json
+
+# Config files with sensitive data
+example.ini
+config.ini
+
+# Logs
+logs/
+*.log
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Search results
+search_results/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# Backups
+backups/
+*.backup
+backup*/
+docs*/
+*test*
+*backup*
