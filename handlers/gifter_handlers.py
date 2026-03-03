@@ -58,7 +58,7 @@ class GifterHandlers:
                 # owner_id = user_id (той хто додає)
                 existing_gifters = self.bot.db.get_all_gifters(owner_id=user_id)
                 existing_gifter = None
-                for name, existing_id, existing_profile, owner in existing_gifters:
+                for name, existing_id, existing_profile, owner, *_ in existing_gifters:
                     if existing_id == user_id_scraped:
                         existing_gifter = {'name': name, 'id': existing_id, 'profile_url': existing_profile}
                         break
@@ -117,7 +117,7 @@ class GifterHandlers:
 
         # Перевірка дубліката
         existing = self.bot.db.get_all_gifters(owner_id=user_id)
-        for name, uid, profile_url, owner in existing:
+        for name, uid, profile_url, owner, *_ in existing:
             if uid == result['tango_id']:
                 await query.edit_message_text(
                     f"ℹ️ Дарувальник вже у вашому списку!\n\n"
@@ -159,8 +159,16 @@ class GifterHandlers:
             return
 
         text = f"📋 Всі дарувальники ({len(gifters)}):\n\n"
-        for i, (name, uid, profile_url, owner) in enumerate(gifters, 1):
-            text += f"{i}. <b>{name}</b>\n   ID: <code>{uid}</code>\n\n"
+        for i, (name, uid, profile_url, owner, created_at) in enumerate(gifters, 1):
+            try:
+                from datetime import datetime
+                date_str = datetime.fromisoformat(created_at).strftime('%d.%m.%Y')
+            except Exception:
+                date_str = ''
+            text += f"{i}. <b>{name}</b>"
+            if date_str:
+                text += f" (додано: {date_str})"
+            text += f"\n   ID: <code>{uid}</code>\n\n"
             if len(text) > 3500:
                 text += "..."
                 break
@@ -183,7 +191,7 @@ class GifterHandlers:
             return
 
         buttons = []
-        for name, uid, profile_url, owner in gifters[:15]:
+        for name, uid, profile_url, owner, *_ in gifters[:15]:
             buttons.append([InlineKeyboardButton(
                 f"❌ {name} ({uid[:8]}...)",
                 callback_data=f'del_gifter_{uid}'

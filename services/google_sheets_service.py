@@ -241,7 +241,7 @@ class GoogleSheetsService:
 
         rows = [HEADERS_GIFTERS]
         for g in gifters:
-            name, uid, profile_url, owner_id = g
+            name, uid, profile_url, owner_id, created_at, *_ = g
             # Отримуємо ім'я власника
             owner_user = self.db.get_bot_user_by_telegram_id(owner_id)
             owner_name = ''
@@ -249,8 +249,12 @@ class GoogleSheetsService:
                 owner_name = (
                     owner_user.get('first_name') or owner_user.get('username') or str(owner_id)
                 )
+            try:
+                created_str = datetime.fromisoformat(created_at).strftime('%d.%m.%Y')
+            except Exception:
+                created_str = created_at or ''
 
-            rows.append([str(uid), name, profile_url, owner_name, ''])
+            rows.append([str(uid), name, profile_url, owner_name, created_str])
 
         ws.clear()
         ws.update(rows, value_input_option='RAW')

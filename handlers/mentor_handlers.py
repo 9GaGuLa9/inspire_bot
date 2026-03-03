@@ -140,7 +140,7 @@ class MentorHandlers:
 
         mentor_data = self.bot.temp_data[user_id]
         keyboard = [
-            [InlineKeyboardButton("📱 Telegram", callback_data='add_mentor_telegram')],
+            [InlineKeyboardButton("🧊 Telegram", callback_data='add_mentor_telegram')],
             [InlineKeyboardButton("📷 Instagram", callback_data='add_mentor_instagram')],
             [InlineKeyboardButton("✅ Завершити", callback_data='finish_mentor_adding')]
         ]
@@ -168,7 +168,7 @@ class MentorHandlers:
         self.bot.temp_data[user_id]['mentor_telegram_instruction_message_id'] = query.message.message_id
         
         await query.edit_message_text(
-            "📱 Додавання Telegram\n\n"
+            "🧊 Додавання Telegram\n\n"
             "Надішліть Telegram username ментора (з @ або без):",
             parse_mode='Markdown'
         )
@@ -296,7 +296,7 @@ class MentorHandlers:
 
         mentor_data = self.bot.temp_data[user_id]
         keyboard = [
-            [InlineKeyboardButton("📱 Telegram", callback_data='add_mentor_telegram')],
+            [InlineKeyboardButton("🧊 Telegram", callback_data='add_mentor_telegram')],
             [InlineKeyboardButton("📷 Instagram", callback_data='add_mentor_instagram')],
             [InlineKeyboardButton("✅ Завершити", callback_data='finish_mentor_adding')]
         ]
@@ -438,7 +438,7 @@ class MentorHandlers:
             text += f"   📊 Стрімерів: {streamer_count}\n"
             text += f"   ✅ Активація: {'✓' if is_activated else '✗'}\n"
             if tg_username:
-                text += f"   📱 @{tg_username}\n"
+                text += f"   🧊 @{tg_username}\n"
             text += f"   <a href='{profile_url}'>Профіль</a>\n\n"
 
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='mentors_menu')]]
@@ -553,7 +553,10 @@ class MentorHandlers:
     async def delete_mentor(self, query, mentor_id):
         """Видалення ментора"""
         success = self.bot.db.delete_mentor(int(mentor_id))
-        
+
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('mentors')
+
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='mentors_menu')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -604,7 +607,10 @@ class MentorHandlers:
     async def restore_mentor(self, query, mentor_id):
         """Відновлення ментора"""
         success = self.bot.db.restore_mentor(int(mentor_id))
-        
+
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('mentors')
+
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='mentors_menu')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -683,7 +689,7 @@ class MentorHandlers:
         # Кнопки редагування
         keyboard = [
             [InlineKeyboardButton("✏️ Змінити профіль (Tango URL)", callback_data=f'edit_mentor_name_{mentor_id}')],
-            [InlineKeyboardButton("📱 Telegram", callback_data=f'show_mentor_telegram_{mentor_id}')],
+            [InlineKeyboardButton("🧊 Telegram", callback_data=f'show_mentor_telegram_{mentor_id}')],
             [InlineKeyboardButton("📷 Instagram", callback_data=f'show_mentor_instagram_{mentor_id}')]
         ]
         
@@ -727,7 +733,7 @@ class MentorHandlers:
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            f"📱 Редагування Telegram\n\n"
+            f"🧊 Редагування Telegram\n\n"
             f"**Поточний Telegram:** @{current_telegram}\n\n"
             f"Оберіть дію:",
             reply_markup=reply_markup,
@@ -774,6 +780,8 @@ class MentorHandlers:
     async def delete_mentor_telegram(self, query, mentor_id):
         """Видалити Telegram ментора"""
         success = self.bot.db.update_mentor_field(mentor_id, 'telegram_username', None)
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('mentors')
         
         if success:
             await query.answer("✅ Telegram видалено", show_alert=True)
@@ -786,6 +794,8 @@ class MentorHandlers:
     async def delete_mentor_instagram(self, query, mentor_id):
         """Видалити Instagram ментора"""
         success = self.bot.db.update_mentor_field(mentor_id, 'instagram_url', None)
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('mentors')
         
         if success:
             await query.answer("✅ Instagram видалено", show_alert=True)
@@ -890,7 +900,7 @@ class MentorHandlers:
         self.bot.temp_data[user_id]['editing_mentor_id'] = mentor_id
         
         instruction_msg = await query.edit_message_text(
-            "📱 **Редагування Telegram**\n\n"
+            "🧊 **Редагування Telegram**\n\n"
             "Надішліть новий Telegram username:",
             parse_mode='Markdown'
         )

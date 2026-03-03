@@ -61,7 +61,7 @@ def main():
     bot = TangoBot(BOT_TOKEN)
     
     # Створюємо application
-    application = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).post_init(TangoBot.on_startup).build()
     
     # Зберігаємо application в bot для доступу до bot.get_me()
     bot.application = application
@@ -75,6 +75,15 @@ def main():
     application.add_handler(CallbackQueryHandler(bot.button_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_message))
     
+    from telegram.error import BadRequest
+
+    async def error_handler(update, context):
+        if isinstance(context.error, BadRequest) and "Message is not modified" in str(context.error):
+            return
+        logging.error(f"Update {update} caused error: {context.error}", exc_info=context.error)
+
+    application.add_error_handler(error_handler)
+
     print("🤖 Tango Search Bot запущено!")
     print("\nНатисніть Ctrl+C для зупинки")
     

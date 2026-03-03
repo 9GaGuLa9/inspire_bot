@@ -1126,6 +1126,15 @@ class StreamerHandlers:
             platform=streamer_data.get('platform'),
             mentor_name=streamer_data.get('mentor_name')
         )
+        if success:
+            # Отримуємо діаманти одразу після збереження
+            try:
+                diamonds = await self.bot.diamonds_service.fetch_diamonds(streamer_data['id'])
+                if diamonds is not None:
+                    self.bot.db.update_streamer_diamonds_now(streamer_data['id'], diamonds)
+            except Exception as _e:
+                logging.warning(f"Не вдалось отримати діаманти при додаванні: {_e}")
+
         if hasattr(self.bot, 'sheets_service'):
             self.bot.sheets_service.schedule_sync('streamers')
 
@@ -1264,7 +1273,10 @@ class StreamerHandlers:
     async def confirm_delete_streamer(self, query, streamer_id):
         """Підтвердження та видалення стрімера"""
         success = self.bot.db.remove_streamer(streamer_id)
-        
+
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('streamers')
+
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='streamers_menu')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -1469,6 +1481,8 @@ class StreamerHandlers:
     async def set_platform(self, query, streamer_id, platform):
         """Встановити платформу"""
         success = self.bot.db.update_streamer_field(streamer_id, 'platform', platform)
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('streamers')
         
         if success:
             await query.answer(f"✅ Платформу змінено на {platform}", show_alert=True)
@@ -1479,6 +1493,8 @@ class StreamerHandlers:
     async def delete_telegram(self, query, streamer_id):
         """Видалити Telegram"""
         success = self.bot.db.update_streamer_field(streamer_id, 'tg_name', None)
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('streamers')
         success = success and self.bot.db.update_streamer_field(streamer_id, 'tg_url', None)
         
         if success:
@@ -1490,6 +1506,8 @@ class StreamerHandlers:
     async def delete_instagram(self, query, streamer_id):
         """Видалити Instagram"""
         success = self.bot.db.update_streamer_field(streamer_id, 'instagram_url', None)
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('streamers')
         
         if success:
             await query.answer("✅ Instagram видалено", show_alert=True)
@@ -1500,6 +1518,8 @@ class StreamerHandlers:
     async def delete_platform(self, query, streamer_id):
         """Видалити платформу"""
         success = self.bot.db.update_streamer_field(streamer_id, 'platform', None)
+        if success and hasattr(self.bot, 'sheets_service'):
+            self.bot.sheets_service.schedule_sync('streamers')
         
         if success:
             await query.answer("✅ Платформу видалено", show_alert=True)
@@ -1933,8 +1953,8 @@ class StreamerHandlers:
             pass
         
         try:
-            if user_id in self.bot.temp_data and 'search_instruction_message_id' in self.bot.temp_data[user_id]:
-                instruction_msg_id = self.bot.temp_data[user_id]['search_instruction_message_id']
+            if user_id in self.bot.temp_data and 'last_bot_message_id' in self.bot.temp_data[user_id]:
+                instruction_msg_id = self.bot.temp_data[user_id]['last_bot_message_id']
                 await self.bot.application.bot.delete_message(
                     chat_id=update.effective_chat.id,
                     message_id=instruction_msg_id

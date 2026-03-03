@@ -1271,12 +1271,12 @@ class DatabaseManager:
                 cur = conn.cursor()
                 if owner_id is None:
                     cur.execute(
-                        'SELECT DISTINCT name, user_id, profile_url, owner_id '
+                        'SELECT DISTINCT name, user_id, profile_url, owner_id, created_at '
                         'FROM gifters ORDER BY created_at DESC'
                     )
                 else:
                     cur.execute(
-                        'SELECT name, user_id, profile_url, owner_id '
+                        'SELECT name, user_id, profile_url, owner_id, created_at '
                         'FROM gifters WHERE owner_id = ? ORDER BY created_at DESC',
                         (owner_id,)
                     )

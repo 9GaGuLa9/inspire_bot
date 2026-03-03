@@ -314,6 +314,8 @@ class CallbackRouter:
             await self.bot.gifter_handlers.delete_gifter(query, data.replace('del_gifter_', ''))
             
         # Дарувальники
+        elif data == 'remove_gifter':
+            await self.bot.gifter_handlers.start_remove_gifter(query, user_id)
         elif data == 'add_gifter':
             await self.bot.gifter_handlers.start_add_gifter(query, user_id)
         elif data == 'show_gifters':
