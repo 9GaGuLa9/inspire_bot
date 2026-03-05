@@ -206,6 +206,10 @@ class CallbackRouter:
             await self.bot.streamer_handlers.start_search_streamer(query, user_id)
         elif data == 'update_diamonds_now':
             await self.bot.diamonds_handlers.start_update_diamonds(update, context)
+        elif data == 'my_streamers':
+            await self.bot.streamer_handlers.show_my_streamers(query, user_id)
+        elif data == 'filter_my_streamers':
+            await self.bot.streamer_handlers.show_my_streamers(query, user_id)
             
         # Фільтрація
         elif data == 'filter_streamers':

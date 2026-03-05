@@ -75,6 +75,25 @@ class MenuHandlers:
                 [InlineKeyboardButton("🆔 Отримати ID", callback_data='get_streamer_id')],
                 [InlineKeyboardButton("❓ Допомога", callback_data='help')]
             ]
+
+        # show_start_menu_with_role — reply до update.message
+        elif role == 'mentor':
+            keyboard = [
+                [InlineKeyboardButton("🎥 Мої стрімери", callback_data='my_streamers')],
+                [InlineKeyboardButton("💝 Мої дарувальники", callback_data='my_donors_menu')],
+                [InlineKeyboardButton("🆔 Отримати ID", callback_data='get_streamer_id')],
+                [InlineKeyboardButton("❓ Допомога", callback_data='help')]
+            ]
+
+        # show_main_menu — edit_message_text
+        elif role == 'mentor':
+            keyboard = [
+                [InlineKeyboardButton("🎥 Мої стрімери", callback_data='my_streamers')],
+                [InlineKeyboardButton("💝 Мої дарувальники", callback_data='my_donors_menu')],
+                [InlineKeyboardButton("🆔 Отримати ID", callback_data='get_streamer_id')],
+                [InlineKeyboardButton("❓ Допомога", callback_data='help')]
+            ]
+
         # Меню для гостя
         else:
             keyboard = [

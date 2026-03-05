@@ -159,6 +159,67 @@ class StreamerHandlers:
                 reply_markup=reply_markup
             )
 
+    async def show_my_streamers(self, query, user_id: int):
+        """Показати стрімерів поточного ментора"""
+        import html as _h
+        from datetime import datetime
+
+        mentor = self.bot.db.get_mentor_by_telegram_id(user_id)
+        if not mentor:
+            keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='main_menu')]]
+            await query.edit_message_text(
+                "❌ Ви не зареєстровані як ментор у системі.",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return
+
+        mentor_name = mentor['mentor_name']
+        streamers = self.bot.db.get_streamers_by_mentor(mentor_name)
+
+        if not streamers:
+            keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='main_menu')]]
+            await query.edit_message_text(
+                f"🎥 <b>Мої стрімери</b>\n\n📭 Стрімерів ще немає.",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='HTML'
+            )
+            return
+
+        display_limit = 10
+        text = f"🎥 <b>Мої стрімери</b> ({len(streamers)}):\n\n"
+
+        for i, streamer_data in enumerate(streamers[:display_limit], 1):
+            name, streamer_id, profile_url, tg_name, tg_url, \
+                instagram_url, platform, s_mentor_name, created_at = streamer_data
+
+            try:
+                date = datetime.fromisoformat(created_at)
+                date_str = date.strftime("%d.%m.%Y")
+            except Exception:
+                date_str = "невідомо"
+
+            text += f"{i}. <b>{_h.escape(name)}</b> (додано: {date_str})\n"
+            text += f"   ID: <code>{streamer_id}</code>\n"
+            text += f'   <a href="{_h.escape(profile_url)}">Профіль</a>\n'
+            if tg_name:
+                text += f"   📱 @{_h.escape(tg_name)}\n"
+            if instagram_url:
+                text += f'   📷 <a href="{_h.escape(instagram_url)}">Instagram</a>\n'
+            if platform:
+                text += f"   📲 {_h.escape(platform)}\n"
+            text += "\n"
+
+        if len(streamers) > display_limit:
+            text += f"... та ще {len(streamers) - display_limit} стрімерів\n"
+
+        keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='main_menu')]]
+        await query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='HTML',
+            disable_web_page_preview=True
+        )
+
     async def show_all_streamers(self, query):
         """Показати всіх стрімерів з пагінацією (перша сторінка)"""
         await self.show_all_streamers_paginated(query, page=0)
